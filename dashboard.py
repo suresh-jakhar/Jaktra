@@ -256,6 +256,41 @@ def main():
     else:
         st.info("No dispatch history available.")
 
+    # DLQ Panel
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Dead Letter Queue — Persistent Failures</div>', unsafe_allow_html=True)
+
+    dlq_path = Path(OUTPUT_DIR) / "dlq.json"
+    if dlq_path.is_file():
+        try:
+            dlq_data = json.loads(dlq_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            dlq_data = {}
+    else:
+        dlq_data = {}
+
+    if dlq_data:
+        # Alert banner for critical entries
+        critical_dlq = {k: v for k, v in dlq_data.items() if v.get("consecutive_failures", 0) >= 3}
+        if critical_dlq:
+            st.warning(
+                f"⚠ **{len(critical_dlq)} invoice(s)** have failed ≥3 consecutive runs and need manual attention."
+            )
+
+        dlq_rows = []
+        for inv_id, entry in sorted(dlq_data.items(), key=lambda x: x[1].get("consecutive_failures", 0), reverse=True):
+            dlq_rows.append({
+                "Invoice": inv_id,
+                "Consecutive Failures": entry.get("consecutive_failures", 0),
+                "Last Error": (entry.get("last_error", "")[:80] + "…") if len(entry.get("last_error", "")) > 80 else entry.get("last_error", ""),
+                "First Failure": entry.get("first_failure", "")[:19].replace("T", " "),
+                "Last Failure": entry.get("last_failure", "")[:19].replace("T", " "),
+            })
+        dlq_df = pd.DataFrame(dlq_rows)
+        st.dataframe(dlq_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No invoices in the dead letter queue. All invoices are processing successfully.")
+
     # Table
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="section-title">Action Ledger</div>', unsafe_allow_html=True)

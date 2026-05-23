@@ -15,7 +15,10 @@ from langgraph.prebuilt import create_react_agent
 from src import config, logger
 from src.idempotency import is_recently_sent, get_last_send_time
 from src.triage import TIER_LEGAL
+from src.dead_letter import DeadLetterQueue, DLQ_ALERT_THRESHOLD
 from src.tools import ALL_TOOLS, get_pending_invoices, process_invoice, generate_run_report
+
+import os
 
 
 _AGENT_SYSTEM_PROMPT = """You are an autonomous finance credit follow-up agent for a company.
@@ -73,6 +76,9 @@ def run_agent(limit: int = None, verbose: bool = True) -> dict:
     # Clear stale log entries from any previous run in this process
     logger.reset()
 
+    # Initialise the persistent dead-letter queue
+    dlq = DeadLetterQueue(os.path.join(config.OUTPUT_DIR, "dlq.json"))
+
     # ── Phase 1: retrieve the triaged invoice list ───────────────────────────
     invoices = json.loads(get_pending_invoices.invoke(""))
     
@@ -115,10 +121,38 @@ def run_agent(limit: int = None, verbose: bool = True) -> dict:
 
         result = json.loads(process_invoice.invoke(inv_no))
 
+        # ── DLQ tracking: success vs failure ─────────────────────────────
+        send_status = result.get("send_status") or result.get("status", "")
+        is_success = send_status in ("sent", "dry_run")
+        is_failure = (
+            result.get("llm_error")
+            or result.get("send_error")
+            or send_status == "error"
+            or result.get("status") == "error"
+        )
+
+        if is_success:
+            dlq.reset(inv_no)
+        elif is_failure:
+            error_msg = (
+                result.get("llm_error")
+                or result.get("send_error")
+                or result.get("reason", "unknown error")
+            )
+            count = dlq.increment(inv_no, error=str(error_msg))
+
+            if count >= DLQ_ALERT_THRESHOLD:
+                alert_msg = (
+                    f"\u26a0 Invoice {inv_no} has failed {count} consecutive runs. "
+                    f"Last error: {error_msg}"
+                )
+                logger.log_action(inv_no, "dlq_alert", "DLQ_ALERT", alert_msg)
+                if verbose:
+                    print(f"         \u26a0 DLQ ALERT: Invoice {inv_no} has failed {count} consecutive runs")
+
         if verbose:
-            status = result.get("send_status") or result.get("status", "?")
             subj   = result.get("email_subject", "")[:60]
-            print(f"         -> {status}  |  {subj}")
+            print(f"         -> {send_status}  |  {subj}")
 
             # Surface the SMTP error so operators know what went wrong
             send_err = result.get("send_error")
