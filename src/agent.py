@@ -16,6 +16,7 @@ from src import config, logger
 from src.idempotency import is_recently_sent, get_last_send_time
 from src.triage import TIER_LEGAL
 from src.dead_letter import DeadLetterQueue, DLQ_ALERT_THRESHOLD
+from src.reconciler import reconcile_followup_counts
 from src.tools import ALL_TOOLS, get_pending_invoices, process_invoice, generate_run_report
 
 import os
@@ -78,6 +79,23 @@ def run_agent(limit: int = None, verbose: bool = True) -> dict:
 
     # Initialise the persistent dead-letter queue
     dlq = DeadLetterQueue(os.path.join(config.OUTPUT_DIR, "dlq.json"))
+
+    # ── Phase 0: reconcile followup_counts against audit log ─────────────
+    recon = reconcile_followup_counts(config.DATA_PATH, config.OUTPUT_DIR)
+    if recon["mismatches_found"] > 0:
+        for m in recon["corrections"]:
+            logger.log_action(
+                m["invoice_no"], "reconcile", "RECONCILE_MISMATCH",
+                f"followup_count corrected: CSV had {m['csv_count']}, "
+                f"audit log shows {m['audit_count']} successful sends.",
+            )
+        if verbose:
+            print(f"[AGENT] Reconciled {recon['mismatches_found']} mismatch(es) before triage.")
+    logger.log_action(
+        "SYSTEM", "reconcile_summary", "ok",
+        f"{recon['total_checked']} invoices reconciled, "
+        f"{recon['mismatches_found']} mismatches corrected.",
+    )
 
     # ── Phase 1: retrieve the triaged invoice list ───────────────────────────
     invoices = json.loads(get_pending_invoices.invoke(""))
