@@ -245,12 +245,18 @@ def send_email(invoice_no: str, subject: str, body: str, to_email: str) -> str:
     logger.log_action(
         invoice_no=invoice_no,
         action="email_sent",
-        result=result.get("status", "unknown"),
-        reason=f"to={to_email} | status={result.get('status')}",
+        result=result.status,
+        reason=f"to={to_email} | status={result.status}",
     )
 
-    result["invoice_no"] = invoice_no
-    return json.dumps(result)
+    return json.dumps({
+        "invoice_no": invoice_no,
+        "status": result.status,
+        "success": result.success,
+        "to": result.to,
+        "timestamp": result.timestamp,
+        "error": result.error,
+    })
 
 
 # Tool 5 : update_invoice_record
@@ -391,29 +397,40 @@ def process_invoice(invoice_no: str) -> str:
     logger.log_action(
         invoice_no=invoice_no,
         action="email_sent",
-        result=send_result.get("status", "unknown"),
-        reason=f"to={to_email} | status={send_result.get('status')}",
+        result=send_result.status,
+        reason=f"to={to_email} | status={send_result.status}",
     )
 
-    # update CSV record
-    with _csv_lock:
-        df = load_invoices(config.DATA_PATH)
-        try:
-            df = update_followup(invoice_no, df)
-            save_invoices(df, config.DATA_PATH)
-            update_status = "ok"
-        except ValueError as exc:
-            update_status = str(exc)
+    # ── Gate: only update the ledger on a confirmed successful send ──────
+    if send_result.success:
+        with _csv_lock:
+            df = load_invoices(config.DATA_PATH)
+            try:
+                df = update_followup(invoice_no, df)
+                save_invoices(df, config.DATA_PATH)
+                update_status = "ok"
+            except ValueError as exc:
+                update_status = str(exc)
 
-    logger.log_action(invoice_no, "record_updated", update_status,
-                      "followup_count incremented; last_followup_date set to today.")
+        logger.log_action(invoice_no, "record_updated", update_status,
+                          "followup_count incremented; last_followup_date set to today.")
+    else:
+        # Send failed — write a FAILED audit row, do NOT touch followup_count
+        update_status = "skipped"
+        logger.log_action(
+            invoice_no=invoice_no,
+            action="email_sent",
+            result="FAILED",
+            reason=f"Send failed: {send_result.error}. Ledger NOT updated.",
+        )
 
     return json.dumps({
         "invoice_no": invoice_no,
         "urgency_tier": urgency_tier,
         "email_subject": subject,
         "to_email": to_email,
-        "send_status": send_result.get("status"),
+        "send_status": send_result.status,
+        "send_error": send_result.error,
         "record_update": update_status,
     })
 

@@ -96,6 +96,11 @@ def run_agent(limit: int = None, verbose: bool = True) -> dict:
             subj   = result.get("email_subject", "")[:60]
             print(f"         -> {status}  |  {subj}")
 
+            # Surface the SMTP error so operators know what went wrong
+            send_err = result.get("send_error")
+            if send_err:
+                print(f"         !! SEND FAILED: {send_err}")
+
     # ── Phase 3: flush the report ────────────────────────────────────────────
     report_path = logger.flush_report(config.OUTPUT_DIR)
     summary = logger.get_summary()
