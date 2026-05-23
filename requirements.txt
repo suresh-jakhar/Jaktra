@@ -10,3 +10,4 @@ streamlit
 plotly
 apscheduler
 pytz
+tenacity

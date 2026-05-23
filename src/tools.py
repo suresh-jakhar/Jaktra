@@ -3,8 +3,16 @@ import json
 import threading
 from datetime import datetime, timezone
 
+import groq
 from langchain_core.tools import tool
 from langchain_groq import ChatGroq
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    RetryError,
+)
 
 from src import config, logger
 from src.data_loader import load_invoices, save_invoices
@@ -24,6 +32,25 @@ def _get_llm() -> ChatGroq:
         api_key=config.GROQ_API_KEY,
         temperature=0.4,
     )
+
+
+# Retryable LLM wrapper
+_RETRYABLE_GROQ_ERRORS = (
+    groq.RateLimitError,
+    groq.APIConnectionError,
+    groq.InternalServerError,
+)
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=8),
+    retry=retry_if_exception_type(_RETRYABLE_GROQ_ERRORS),
+    reraise=True,
+)
+def _invoke_llm_with_retry(llm, messages):
+    """Call the LLM with up to 3 retries on transient Groq errors (429, 5xx)."""
+    return llm.invoke(messages)
 
 
 # Tool 1 : get_pending_invoices
@@ -156,7 +183,20 @@ def generate_followup_email(invoice_no: str) -> str:
     )
 
     llm = _get_llm()
-    response = llm.invoke(messages)
+    try:
+        response = _invoke_llm_with_retry(llm, messages)
+    except groq.GroqError as exc:
+        logger.log_action(
+            invoice_no=invoice_no,
+            action="llm_generation",
+            result="GROQ_FAILURE",
+            reason=f"Groq API failed: {exc}",
+        )
+        return json.dumps({
+            "status": "error",
+            "invoice_no": invoice_no,
+            "reason": f"LLM generation failed: {exc}",
+        })
     raw_text: str = response.content.strip()
 
     # Parse the LLM output into subject + body
@@ -387,7 +427,21 @@ def process_invoice(invoice_no: str) -> str:
         ),
     )
     llm = _get_llm()
-    response = llm.invoke(messages)
+    try:
+        response = _invoke_llm_with_retry(llm, messages)
+    except groq.GroqError as exc:
+        logger.log_action(
+            invoice_no=invoice_no,
+            action="llm_generation",
+            result="GROQ_FAILURE",
+            reason=f"Groq API failed: {exc}",
+        )
+        return json.dumps({
+            "status": "error",
+            "invoice_no": invoice_no,
+            "reason": f"LLM generation failed: {exc}",
+            "llm_error": str(exc),
+        })
     subject, body = _parse_email_output(response.content.strip())
 
     logger.log_action(invoice_no, "email_generated", "ok", f"Tier: {urgency_tier}. Subject: {subject}")
