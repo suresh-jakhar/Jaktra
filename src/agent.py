@@ -78,6 +78,8 @@ def run_agent(limit: int = None, verbose: bool = True) -> dict:
         invoices = invoices[:limit]
 
     total = len(invoices)
+    failed_invoices: list[dict] = []
+
     if verbose:
         print(f"\n[AGENT] {total} invoices to process.\n")
 
@@ -101,8 +103,31 @@ def run_agent(limit: int = None, verbose: bool = True) -> dict:
             if send_err:
                 print(f"         !! SEND FAILED: {send_err}")
 
+            # Surface LLM/Groq API errors
+            llm_err = result.get("llm_error")
+            if llm_err:
+                print(f"         !! LLM FAILED: {llm_err}")
+
+        # Track invoices that failed LLM generation
+        if result.get("llm_error") or result.get("reason", "").startswith("LLM generation failed"):
+            failed_invoices.append({
+                "invoice_no": inv_no,
+                "error": result.get("llm_error") or result.get("reason", "unknown"),
+            })
+
+    # ── Log LLM failure summary ──────────────────────────────────────────────
+    if failed_invoices:
+        fail_count = len(failed_invoices)
+        inv_list = ", ".join(f["invoice_no"] for f in failed_invoices)
+        msg = f"{fail_count} invoice(s) failed LLM generation: {inv_list}"
+        logger.log_action("SYSTEM", "llm_failure_summary", "error", msg)
+
+        if verbose:
+            print(f"\n[AGENT] ⚠ {msg}")
+
     # ── Phase 3: flush the report ────────────────────────────────────────────
     report_path = logger.flush_report(config.OUTPUT_DIR)
     summary = logger.get_summary()
     summary["report_file"] = report_path
+    summary["failed_invoices"] = failed_invoices
     return summary
