@@ -59,7 +59,7 @@ def get_summary() -> dict:
     total_processed = sum(1 for e in _log if e["action"] == "email_generated")
     total_sent = sum(1 for e in _log if e["result"] in ("sent", "dry_run"))
     total_skipped = sum(1 for e in _log if e["result"] == "skipped")
-    total_errors = sum(1 for e in _log if e["result"] == "error")
+    total_errors = sum(1 for e in _log if e["result"] in ("error", "FAILED"))
 
     return {
         "total_processed": total_processed,
