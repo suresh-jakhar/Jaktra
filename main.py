@@ -114,6 +114,10 @@ def main() -> int:
         print(f"\n[ERROR] Unhandled exception: {exc}")
         return 1
 
+    # Persist last-run timestamp so scheduler missed-run detection stays current
+    from src.scheduler import _save_last_run_timestamp
+    _save_last_run_timestamp()
+
     _print_summary(summary)
 
     return 0

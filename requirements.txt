@@ -11,3 +11,4 @@ plotly
 apscheduler
 pytz
 tenacity
+sqlalchemy
