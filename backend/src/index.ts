@@ -9,6 +9,8 @@ const db = createDatabaseClient({ connectionString: config.DATABASE_URL });
 const app = createApp({
   corsOrigins: config.CORS_ORIGINS,
   db,
+  jwtSecret: config.JWT_SECRET,
+  jwtExpiresIn: config.JWT_EXPIRES_IN,
 });
 
 const server = app.listen(config.PORT, () => {
