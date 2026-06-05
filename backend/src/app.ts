@@ -7,6 +7,7 @@ import { createInvoiceImportRouter } from './routes/invoice-import.router.js';
 import { createTriageRouter } from './routes/triage.router.js';
 import { createCommunicationRouter } from './routes/communication.router.js';
 import { createEventRouter } from './routes/event.router.js';
+import { createAimlRouter } from './routes/aiml.router.js';
 import { UserRepository } from './repositories/user.repository.js';
 import { TenantRepository } from './repositories/tenant.repository.js';
 import { InvoiceRepository } from './repositories/invoice.repository.js';
@@ -18,6 +19,7 @@ import { InvoiceImportService } from './services/invoice-import.service.js';
 import { TriageService } from './services/triage.service.js';
 import { CommunicationService } from './services/communication.service.js';
 import { EventService } from './services/event.service.js';
+import { AimlService } from './services/aiml.service.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
 import { logger } from './utils/logger.js';
@@ -28,6 +30,7 @@ export interface AppConfig {
   db?: DatabaseClient;
   jwtSecret?: string;
   jwtExpiresIn?: string;
+  aimlServiceUrl?: string;
 }
 
 export function createApp(config: AppConfig): Application {
@@ -75,6 +78,12 @@ export function createApp(config: AppConfig): Application {
     app.locals.authMiddleware = authMiddleware;
     app.locals.authService = authService;
     app.locals.tenantScoped = tenantScoped;
+
+    if (config.aimlServiceUrl) {
+      const aimlService = new AimlService({ baseUrl: config.aimlServiceUrl });
+      app.use('/api/aiml', createAimlRouter(aimlService, authMiddleware));
+      app.locals.aimlService = aimlService;
+    }
   }
 
   return app;

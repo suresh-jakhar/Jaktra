@@ -11,6 +11,7 @@ const app = createApp({
   db,
   jwtSecret: config.JWT_SECRET,
   jwtExpiresIn: config.JWT_EXPIRES_IN,
+  aimlServiceUrl: config.AI_ML_SERVICE_URL,
 });
 
 const server = app.listen(config.PORT, () => {
