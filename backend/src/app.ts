@@ -41,7 +41,7 @@ export function createApp(config: AppConfig): Application {
     const authService = new AuthService(userRepo, config.jwtSecret, config.jwtExpiresIn ?? '7d');
     const authMiddleware = createAuthMiddleware(authService);
 
-    app.use('/api/auth', createAuthRouter(authService));
+    app.use('/api/auth', createAuthRouter(authService, authMiddleware));
 
     // Expose on app.locals so other routers can reference them
     app.locals.authMiddleware = authMiddleware;

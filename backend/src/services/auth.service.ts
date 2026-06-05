@@ -79,6 +79,27 @@ export class AuthService {
     }
   }
 
+  async refreshToken(token: string): Promise<AuthResult> {
+    const payload = this.verifyToken(token);
+
+    const user = await this.userRepo.findById(payload.userId);
+    if (!user) {
+      throw new AuthError('User no longer exists', 401);
+    }
+
+    const newToken = this.signToken(user);
+    return { user: this.stripHash(user), token: newToken };
+  }
+
+  async getProfile(userId: string): Promise<Omit<User, 'passwordHash'>> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AuthError('User not found', 404);
+    }
+
+    return this.stripHash(user);
+  }
+
   private signToken(user: User): string {
     const payload: JwtPayload = {
       userId: user.id,

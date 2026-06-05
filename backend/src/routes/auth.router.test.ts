@@ -198,4 +198,53 @@ describe('Auth API', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe('POST /api/auth/refresh', () => {
+    it('returns 401 without token', async () => {
+      const res = await request(app).post('/api/auth/refresh');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 401 with garbage token', async () => {
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .set('Authorization', 'Bearer garbage.token.here');
+
+      expect(res.status).toBe(401);
+    });
+
+    it('returns a new token with valid token', async () => {
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.token).toBeDefined();
+      expect(res.body.token).not.toBe(authToken);
+      expect(res.body.user.email).toBe(TEST_USER.email);
+      expect(res.body.user.passwordHash).toBeUndefined();
+
+      // Use the refreshed token for subsequent tests
+      authToken = res.body.token;
+    });
+  });
+
+  describe('GET /api/auth/me', () => {
+    it('returns 401 without token', async () => {
+      const res = await request(app).get('/api/auth/me');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns user profile with valid token', async () => {
+      const res = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.email).toBe(TEST_USER.email);
+      expect(res.body.role).toBe('viewer');
+      expect(res.body.tenantId).toBe(tenantId);
+      expect(res.body.passwordHash).toBeUndefined();
+    });
+  });
 });
