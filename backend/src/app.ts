@@ -36,6 +36,10 @@ import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
 import { logger } from './utils/logger.js';
 import type { DatabaseClient } from './db/index.js';
+import { PaymentGatewayFactory } from './services/payment/gateway.factory.js';
+import { RazorpayAdapter } from './services/payment/adapters/razorpay.adapter.js';
+import { WebhookService } from './services/webhook.service.js';
+import { createWebhookRouter } from './routes/webhook.router.js';
 
 export interface AppConfig {
   corsOrigins: string[];
@@ -44,6 +48,7 @@ export interface AppConfig {
   jwtExpiresIn?: string;
   aimlServiceUrl?: string;
   sendgridApiKey?: string;
+  razorpayWebhookSecret?: string;
 }
 
 export function createApp(config: AppConfig): Application {
@@ -55,6 +60,24 @@ export function createApp(config: AppConfig): Application {
       credentials: true,
     })
   );
+
+  // --- Webhooks must be registered BEFORE express.json() ---
+  if (config.db) {
+    const invoiceRepo = new InvoiceRepository(config.db);
+    const eventRepo = new EventRepository(config.db);
+    
+    const gatewayFactory = new PaymentGatewayFactory();
+    gatewayFactory.register(new RazorpayAdapter());
+    
+    const webhookService = new WebhookService(invoiceRepo, eventRepo);
+    
+    const webhookSecrets: Record<string, string> = {};
+    if (config.razorpayWebhookSecret) {
+      webhookSecrets['razorpay'] = config.razorpayWebhookSecret;
+    }
+    
+    app.use('/api/webhooks', createWebhookRouter(gatewayFactory, webhookService, webhookSecrets));
+  }
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));

@@ -37,6 +37,18 @@ export class InvoiceRepository {
       .where(eq(invoices.id, invoiceId));
   }
 
+  async updatePaymentStatus(invoiceId: string, status: 'Pending' | 'Paid' | 'Overdue' | 'Written Off', externalRefId?: string): Promise<void> {
+    const updateData: any = { paymentStatus: status, updatedAt: new Date() };
+    if (externalRefId) {
+      updateData.externalRefId = externalRefId;
+    }
+    
+    await this.db
+      .update(invoices)
+      .set(updateData)
+      .where(eq(invoices.id, invoiceId));
+  }
+
   async findByInvoiceNo(invoiceNo: string, tenantId: string): Promise<Invoice | undefined> {
     const rows = await this.db
       .select()

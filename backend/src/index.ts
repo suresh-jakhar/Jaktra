@@ -13,6 +13,7 @@ const app = createApp({
   jwtExpiresIn: config.JWT_EXPIRES_IN,
   aimlServiceUrl: config.AI_ML_SERVICE_URL,
   sendgridApiKey: config.SENDGRID_API_KEY,
+  razorpayWebhookSecret: config.RAZORPAY_WEBHOOK_SECRET,
 });
 
 const server = app.listen(config.PORT, () => {
