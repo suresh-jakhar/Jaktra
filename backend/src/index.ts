@@ -12,6 +12,7 @@ const app = createApp({
   jwtSecret: config.JWT_SECRET,
   jwtExpiresIn: config.JWT_EXPIRES_IN,
   aimlServiceUrl: config.AI_ML_SERVICE_URL,
+  sendgridApiKey: config.SENDGRID_API_KEY,
 });
 
 const server = app.listen(config.PORT, () => {

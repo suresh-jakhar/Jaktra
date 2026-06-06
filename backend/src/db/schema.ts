@@ -215,10 +215,26 @@ export const dlqEntries = pgTable('dlq_entries', {
     .defaultNow(),
 });
 
-export const tenantsRelations = relations(tenants, ({ many }) => ({
+export const tenantSettings = pgTable('tenant_settings', {
+  tenantId: uuid('tenant_id')
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  senderName: text('sender_name').notNull(),
+  senderEmail: text('sender_email').notNull(),
+  replyTo: text('reply_to'),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const tenantsRelations = relations(tenants, ({ many, one }) => ({
   users: many(users),
   invoices: many(invoices),
   agentRuns: many(agentRuns),
+  settings: one(tenantSettings, {
+    fields: [tenants.id],
+    references: [tenantSettings.tenantId],
+  }),
 }));
 
 export const usersRelations = relations(users, ({ one }) => ({
@@ -269,6 +285,13 @@ export const dlqEntriesRelations = relations(dlqEntries, ({ one }) => ({
   }),
 }));
 
+export const tenantSettingsRelations = relations(tenantSettings, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [tenantSettings.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
 export type Tenant = typeof tenants.$inferSelect;
 export type NewTenant = typeof tenants.$inferInsert;
 
@@ -289,3 +312,6 @@ export type NewAgentRun = typeof agentRuns.$inferInsert;
 
 export type DlqEntry = typeof dlqEntries.$inferSelect;
 export type NewDlqEntry = typeof dlqEntries.$inferInsert;
+
+export type TenantSettings = typeof tenantSettings.$inferSelect;
+export type NewTenantSettings = typeof tenantSettings.$inferInsert;

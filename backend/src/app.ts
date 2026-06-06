@@ -10,6 +10,7 @@ import { createEventRouter } from './routes/event.router.js';
 import { createAimlRouter } from './routes/aiml.router.js';
 import { createAgentRouter } from './routes/agent.router.js';
 import { createDlqRouter } from './routes/dlq.router.js';
+import { createEmailRouter } from './routes/email.router.js';
 import { UserRepository } from './repositories/user.repository.js';
 import { TenantRepository } from './repositories/tenant.repository.js';
 import { InvoiceRepository } from './repositories/invoice.repository.js';
@@ -24,8 +25,10 @@ import { EventService } from './services/event.service.js';
 import { AimlService } from './services/aiml.service.js';
 import { AgentService } from './services/agent.service.js';
 import { DlqService } from './services/dlq.service.js';
+import { EmailService } from './services/email.service.js';
 import { AgentRepository } from './repositories/agent.repository.js';
 import { DlqRepository } from './repositories/dlq.repository.js';
+import { EmailRepository } from './repositories/email.repository.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
 import { logger } from './utils/logger.js';
@@ -37,6 +40,7 @@ export interface AppConfig {
   jwtSecret?: string;
   jwtExpiresIn?: string;
   aimlServiceUrl?: string;
+  sendgridApiKey?: string;
 }
 
 export function createApp(config: AppConfig): Application {
@@ -94,6 +98,10 @@ export function createApp(config: AppConfig): Application {
       const dlqRepo = new DlqRepository(config.db);
       const dlqService = new DlqService(dlqRepo);
       app.use('/api/dlq', createDlqRouter(dlqService, authMiddleware, tenantScoped));
+
+      const emailRepo = new EmailRepository(config.db);
+      const emailService = new EmailService(emailRepo, config.sendgridApiKey);
+      app.use('/api/settings/email', createEmailRouter(emailService, authMiddleware, tenantScoped));
 
       const agentRepo = new AgentRepository(config.db);
       const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService);
