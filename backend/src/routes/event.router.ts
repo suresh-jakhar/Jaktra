@@ -15,7 +15,8 @@ export function createEventRouter(
     async (req: Request, res: Response) => {
       try {
         const tenantId = res.locals.tenantId as string;
-        const timeline = await eventService.listByInvoice(req.params.id, tenantId);
+        const invoiceId = req.params.id as string;
+        const timeline = await eventService.listByInvoice(invoiceId, tenantId);
         res.status(200).json(timeline);
       } catch (err) {
         if (err instanceof EventError) {

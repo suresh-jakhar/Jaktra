@@ -19,7 +19,8 @@ export function createCommunicationRouter(
     async (req: Request, res: Response) => {
       try {
         const tenantId = res.locals.tenantId as string;
-        const records = await communicationService.listByInvoice(req.params.id, tenantId);
+        const invoiceId = req.params.id as string;
+        const records = await communicationService.listByInvoice(invoiceId, tenantId);
         res.status(200).json(records);
       } catch (err) {
         if (err instanceof CommunicationError) {

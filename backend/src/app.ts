@@ -8,6 +8,7 @@ import { createTriageRouter } from './routes/triage.router.js';
 import { createCommunicationRouter } from './routes/communication.router.js';
 import { createEventRouter } from './routes/event.router.js';
 import { createAimlRouter } from './routes/aiml.router.js';
+import { createAgentRouter } from './routes/agent.router.js';
 import { UserRepository } from './repositories/user.repository.js';
 import { TenantRepository } from './repositories/tenant.repository.js';
 import { InvoiceRepository } from './repositories/invoice.repository.js';
@@ -20,6 +21,8 @@ import { TriageService } from './services/triage.service.js';
 import { CommunicationService } from './services/communication.service.js';
 import { EventService } from './services/event.service.js';
 import { AimlService } from './services/aiml.service.js';
+import { AgentService } from './services/agent.service.js';
+import { AgentRepository } from './repositories/agent.repository.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
 import { logger } from './utils/logger.js';
@@ -75,6 +78,7 @@ export function createApp(config: AppConfig): Application {
     const eventRepo = new EventRepository(config.db);
     const eventService = new EventService(eventRepo, invoiceRepo);
     app.use('/api', createEventRouter(eventService, authMiddleware, tenantScoped));
+    
     app.locals.authMiddleware = authMiddleware;
     app.locals.authService = authService;
     app.locals.tenantScoped = tenantScoped;
@@ -83,6 +87,10 @@ export function createApp(config: AppConfig): Application {
       const aimlService = new AimlService({ baseUrl: config.aimlServiceUrl });
       app.use('/api/aiml', createAimlRouter(aimlService, authMiddleware));
       app.locals.aimlService = aimlService;
+
+      const agentRepo = new AgentRepository(config.db);
+      const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService);
+      app.use('/api/agent', createAgentRouter(agentService, authMiddleware, tenantScoped));
     }
   }
 

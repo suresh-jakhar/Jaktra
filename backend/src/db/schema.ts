@@ -173,9 +173,38 @@ export const events = pgTable(
 );
 
 
+export const agentRuns = pgTable(
+  'agent_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('running'), // running, completed, failed
+    startTime: timestamp('start_time', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    endTime: timestamp('end_time', { withTimezone: true }),
+    invoicesProcessed: integer('invoices_processed').notNull().default(0),
+    emailsSent: integer('emails_sent').notNull().default(0),
+    errors: integer('errors').notNull().default(0),
+    errorDetails: text('error_details'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('agent_runs_tenant_id_start_time_idx').on(
+      table.tenantId,
+      table.startTime
+    ),
+  ]
+);
+
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   users: many(users),
   invoices: many(invoices),
+  agentRuns: many(agentRuns),
 }));
 
 export const usersRelations = relations(users, ({ one }) => ({
@@ -208,6 +237,12 @@ export const eventsRelations = relations(events, ({ one }) => ({
   }),
 }));
 
+export const agentRunsRelations = relations(agentRuns, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [agentRuns.tenantId],
+    references: [tenants.id],
+  }),
+}));
 
 export type Tenant = typeof tenants.$inferSelect;
 export type NewTenant = typeof tenants.$inferInsert;
@@ -223,3 +258,6 @@ export type NewCommunication = typeof communications.$inferInsert;
 
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
+
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type NewAgentRun = typeof agentRuns.$inferInsert;
