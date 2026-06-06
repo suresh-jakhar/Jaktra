@@ -3,6 +3,7 @@ import { AimlService } from './aiml.service.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { TriageService } from './triage.service.js';
 import { EventService } from './event.service.js';
+import { DlqService } from './dlq.service.js';
 
 export class AgentService {
   constructor(
@@ -11,6 +12,7 @@ export class AgentService {
     private invoiceRepo: InvoiceRepository,
     private triageService: TriageService,
     private eventService: EventService,
+    private dlqService: DlqService,
   ) {}
 
   async triggerRun(tenantId: string, dryRun = false) {
@@ -69,7 +71,15 @@ export class AgentService {
           { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, runId: run.id },
           'ai-agent'
         );
-      } catch (err) {
+
+        // Clear any previous DLQ entry on success
+        if (!resp.error) {
+          await this.dlqService.clearFailure(inv.id).catch(() => {});
+        } else {
+          // It's possible the AI-ML service returned a soft error
+          await this.dlqService.recordFailure(inv.id, resp.error).catch(() => {});
+        }
+      } catch (err: any) {
         errorsCount++;
         await this.eventService.emitEvent(
           inv.id,
@@ -77,6 +87,7 @@ export class AgentService {
           { error: String(err), runId: run.id },
           'system'
         );
+        await this.dlqService.recordFailure(inv.id, String(err)).catch(() => {});
       }
     }
 
@@ -118,14 +129,21 @@ export class AgentService {
         'ai-agent'
       );
 
+      if (!resp.error) {
+        await this.dlqService.clearFailure(invoice.id).catch(() => {});
+      } else {
+        await this.dlqService.recordFailure(invoice.id, resp.error).catch(() => {});
+      }
+
       return resp;
-    } catch (err) {
+    } catch (err: any) {
       await this.eventService.emitEvent(
         invoice.id,
         'halted',
         { error: String(err) },
         'system'
       );
+      await this.dlqService.recordFailure(invoice.id, String(err)).catch(() => {});
       throw err;
     }
   }

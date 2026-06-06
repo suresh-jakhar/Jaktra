@@ -9,6 +9,7 @@ import { createCommunicationRouter } from './routes/communication.router.js';
 import { createEventRouter } from './routes/event.router.js';
 import { createAimlRouter } from './routes/aiml.router.js';
 import { createAgentRouter } from './routes/agent.router.js';
+import { createDlqRouter } from './routes/dlq.router.js';
 import { UserRepository } from './repositories/user.repository.js';
 import { TenantRepository } from './repositories/tenant.repository.js';
 import { InvoiceRepository } from './repositories/invoice.repository.js';
@@ -22,7 +23,9 @@ import { CommunicationService } from './services/communication.service.js';
 import { EventService } from './services/event.service.js';
 import { AimlService } from './services/aiml.service.js';
 import { AgentService } from './services/agent.service.js';
+import { DlqService } from './services/dlq.service.js';
 import { AgentRepository } from './repositories/agent.repository.js';
+import { DlqRepository } from './repositories/dlq.repository.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
 import { logger } from './utils/logger.js';
@@ -88,8 +91,12 @@ export function createApp(config: AppConfig): Application {
       app.use('/api/aiml', createAimlRouter(aimlService, authMiddleware));
       app.locals.aimlService = aimlService;
 
+      const dlqRepo = new DlqRepository(config.db);
+      const dlqService = new DlqService(dlqRepo);
+      app.use('/api/dlq', createDlqRouter(dlqService, authMiddleware, tenantScoped));
+
       const agentRepo = new AgentRepository(config.db);
-      const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService);
+      const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService);
       app.use('/api/agent', createAgentRouter(agentService, authMiddleware, tenantScoped));
     }
   }

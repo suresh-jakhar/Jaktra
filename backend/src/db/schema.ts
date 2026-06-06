@@ -201,6 +201,20 @@ export const agentRuns = pgTable(
   ]
 );
 
+export const dlqEntries = pgTable('dlq_entries', {
+  invoiceId: uuid('invoice_id')
+    .primaryKey()
+    .references(() => invoices.id, { onDelete: 'cascade' }),
+  consecutiveFailures: integer('consecutive_failures').notNull().default(1),
+  lastError: text('last_error'),
+  firstFailure: timestamp('first_failure', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastFailure: timestamp('last_failure', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   users: many(users),
   invoices: many(invoices),
@@ -221,6 +235,10 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   }),
   communications: many(communications),
   events: many(events),
+  dlqEntry: one(dlqEntries, {
+    fields: [invoices.id],
+    references: [dlqEntries.invoiceId],
+  }),
 }));
 
 export const communicationsRelations = relations(communications, ({ one }) => ({
@@ -244,6 +262,13 @@ export const agentRunsRelations = relations(agentRuns, ({ one }) => ({
   }),
 }));
 
+export const dlqEntriesRelations = relations(dlqEntries, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [dlqEntries.invoiceId],
+    references: [invoices.id],
+  }),
+}));
+
 export type Tenant = typeof tenants.$inferSelect;
 export type NewTenant = typeof tenants.$inferInsert;
 
@@ -261,3 +286,6 @@ export type NewEvent = typeof events.$inferInsert;
 
 export type AgentRun = typeof agentRuns.$inferSelect;
 export type NewAgentRun = typeof agentRuns.$inferInsert;
+
+export type DlqEntry = typeof dlqEntries.$inferSelect;
+export type NewDlqEntry = typeof dlqEntries.$inferInsert;
