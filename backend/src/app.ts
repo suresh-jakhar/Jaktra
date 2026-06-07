@@ -12,6 +12,7 @@ import { createAimlRouter } from './routes/aiml.router.js';
 import { createAgentRouter } from './routes/agent.router.js';
 import { createDlqRouter } from './routes/dlq.router.js';
 import { createEmailRouter } from './routes/email.router.js';
+import { createAnalyticsRouter } from './routes/analytics.router.js';
 import { UserRepository } from './repositories/user.repository.js';
 import { TenantRepository } from './repositories/tenant.repository.js';
 import { InvoiceRepository } from './repositories/invoice.repository.js';
@@ -28,10 +29,12 @@ import { AimlService } from './services/aiml.service.js';
 import { AgentService } from './services/agent.service.js';
 import { DlqService } from './services/dlq.service.js';
 import { EmailService } from './services/email.service.js';
+import { AnalyticsService } from './services/analytics.service.js';
 import { IdempotencyService } from './services/idempotency.service.js';
 import { AgentRepository } from './repositories/agent.repository.js';
 import { DlqRepository } from './repositories/dlq.repository.js';
 import { EmailRepository } from './repositories/email.repository.js';
+import { AnalyticsRepository } from './repositories/analytics.repository.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
 import { logger } from './utils/logger.js';
@@ -108,6 +111,10 @@ export function createApp(config: AppConfig): Application {
     const triageService = new TriageService();
     app.use('/api/invoices', createInvoiceImportRouter(invoiceImportService, authMiddleware, tenantScoped));
     app.use('/api/invoices', createTriageRouter(triageService, invoiceRepo, authMiddleware, tenantScoped));
+
+    const analyticsRepo = new AnalyticsRepository(config.db);
+    const analyticsService = new AnalyticsService(analyticsRepo);
+    app.use('/api/analytics', createAnalyticsRouter(analyticsService, authMiddleware, tenantScoped));
 
     const communicationRepo = new CommunicationRepository(config.db);
     const reconcilerService = new ReconcilerService(invoiceRepo, communicationRepo);
