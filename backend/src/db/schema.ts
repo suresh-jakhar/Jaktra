@@ -10,6 +10,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -219,9 +220,15 @@ export const tenantSettings = pgTable('tenant_settings', {
   tenantId: uuid('tenant_id')
     .primaryKey()
     .references(() => tenants.id, { onDelete: 'cascade' }),
+  companyName: text('company_name').notNull().default('Company'),
   senderName: text('sender_name').notNull(),
   senderEmail: text('sender_email').notNull(),
   replyTo: text('reply_to'),
+  paymentLink: text('payment_link'),
+  bankDetails: text('bank_details'),
+  timezone: text('timezone').notNull().default('UTC'),
+  scheduleHour: integer('schedule_hour').notNull().default(9),
+  dryRun: boolean('dry_run').notNull().default(true),
   idempotencyWindowHours: integer('idempotency_window_hours').notNull().default(20),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()

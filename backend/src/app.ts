@@ -13,6 +13,7 @@ import { createAgentRouter } from './routes/agent.router.js';
 import { createDlqRouter } from './routes/dlq.router.js';
 import { createEmailRouter } from './routes/email.router.js';
 import { createAnalyticsRouter } from './routes/analytics.router.js';
+import { createSettingsRouter } from './routes/settings.router.js';
 import { UserRepository } from './repositories/user.repository.js';
 import { TenantRepository } from './repositories/tenant.repository.js';
 import { InvoiceRepository } from './repositories/invoice.repository.js';
@@ -35,6 +36,8 @@ import { AgentRepository } from './repositories/agent.repository.js';
 import { DlqRepository } from './repositories/dlq.repository.js';
 import { EmailRepository } from './repositories/email.repository.js';
 import { AnalyticsRepository } from './repositories/analytics.repository.js';
+import { SettingsRepository } from './repositories/settings.repository.js';
+import { SettingsService } from './services/settings.service.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
 import { logger } from './utils/logger.js';
@@ -115,6 +118,10 @@ export function createApp(config: AppConfig): Application {
     const analyticsRepo = new AnalyticsRepository(config.db);
     const analyticsService = new AnalyticsService(analyticsRepo);
     app.use('/api/analytics', createAnalyticsRouter(analyticsService, authMiddleware, tenantScoped));
+
+    const settingsRepo = new SettingsRepository(config.db);
+    const settingsService = new SettingsService(settingsRepo);
+    app.use('/api/settings', createSettingsRouter(settingsService, authMiddleware, tenantScoped));
 
     const communicationRepo = new CommunicationRepository(config.db);
     const reconcilerService = new ReconcilerService(invoiceRepo, communicationRepo);
