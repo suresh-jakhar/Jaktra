@@ -5,6 +5,9 @@ export {
   invoices,
   communications,
   events,
+  agentRuns,
+  dlqEntries,
+  tenantSettings,
 } from './schema.js';
 
 export {
@@ -26,6 +29,12 @@ export type {
   NewCommunication,
   Event,
   NewEvent,
+  AgentRun,
+  NewAgentRun,
+  DlqEntry,
+  NewDlqEntry,
+  TenantSettings,
+  NewTenantSettings,
 } from './schema.js';
 
 export { createDatabaseClient } from './client.js';

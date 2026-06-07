@@ -1,5 +1,5 @@
 import { eq, and, isNull, gte, lte, sql } from 'drizzle-orm';
-import { invoices } from '../db/index.js';
+import { invoices, agentRuns, communications } from '../db/index.js';
 import type { DatabaseClient } from '../db/index.js';
 
 export class AnalyticsRepository {
@@ -106,5 +106,100 @@ export class AnalyticsRepository {
       .where(baseConditions);
 
     return result[0];
+  }
+
+  async getAgentPerformance(tenantId: string, fromDate?: Date, toDate?: Date) {
+    let baseConditions = and(
+      eq(invoices.tenantId, tenantId),
+      isNull(invoices.deletedAt),
+      gte(invoices.followupCount, 1)
+    );
+
+    if (fromDate) {
+      baseConditions = and(baseConditions, gte(invoices.createdAt, fromDate));
+    }
+    if (toDate) {
+      baseConditions = and(baseConditions, lte(invoices.createdAt, toDate));
+    }
+
+    const successData = await this.db
+      .select({
+        totalFollowedUp: sql<number>`COUNT(*)::int`,
+        paidAfterFollowUp: sql<number>`SUM(CASE WHEN ${invoices.paymentStatus} = 'Paid' THEN 1 ELSE 0 END)::int`,
+        avgDaysToPayment: sql<number>`AVG(CASE WHEN ${invoices.paymentStatus} = 'Paid' THEN EXTRACT(EPOCH FROM (${invoices.updatedAt} - ${invoices.createdAt})) / 86400 ELSE NULL END)::float`
+      })
+      .from(invoices)
+      .where(baseConditions);
+
+    let runConditions: any = eq(agentRuns.tenantId, tenantId);
+    if (fromDate) {
+      runConditions = and(runConditions, gte(agentRuns.startTime, fromDate));
+    }
+    if (toDate) {
+      runConditions = and(runConditions, lte(agentRuns.startTime, toDate));
+    }
+    
+    const runData = await this.db
+      .select({
+        emailsSent: sql<number>`COALESCE(SUM(${agentRuns.emailsSent}), 0)::int`
+      })
+      .from(agentRuns)
+      .where(runConditions);
+
+    return {
+      successData: successData[0] || { totalFollowedUp: 0, paidAfterFollowUp: 0, avgDaysToPayment: 0 },
+      runData: runData[0] || { emailsSent: 0 },
+    };
+  }
+
+  async getChannelBreakdown(tenantId: string, fromDate?: Date, toDate?: Date) {
+    let baseConditions = and(
+      eq(invoices.tenantId, tenantId),
+      isNull(invoices.deletedAt)
+    );
+    if (fromDate) {
+      baseConditions = and(baseConditions, gte(communications.sentAt, fromDate));
+    }
+    if (toDate) {
+      baseConditions = and(baseConditions, lte(communications.sentAt, toDate));
+    }
+
+    const result = await this.db
+      .select({
+        channel: communications.channel,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(communications)
+      .innerJoin(invoices, eq(communications.invoiceId, invoices.id))
+      .where(and(baseConditions, eq(communications.status, 'sent')))
+      .groupBy(communications.channel);
+
+    return result;
+  }
+
+  async getTierEffectiveness(tenantId: string, fromDate?: Date, toDate?: Date) {
+    let baseConditions = and(
+      eq(invoices.tenantId, tenantId),
+      isNull(invoices.deletedAt),
+      eq(invoices.paymentStatus, 'Paid'),
+      gte(invoices.followupCount, 1)
+    );
+    if (fromDate) {
+      baseConditions = and(baseConditions, gte(invoices.createdAt, fromDate));
+    }
+    if (toDate) {
+      baseConditions = and(baseConditions, lte(invoices.createdAt, toDate));
+    }
+
+    const result = await this.db
+      .select({
+        tier: invoices.urgencyTier,
+        avgDaysToPayment: sql<number>`AVG(EXTRACT(EPOCH FROM (${invoices.updatedAt} - ${invoices.createdAt})) / 86400)::float`,
+      })
+      .from(invoices)
+      .where(baseConditions)
+      .groupBy(invoices.urgencyTier);
+
+    return result;
   }
 }

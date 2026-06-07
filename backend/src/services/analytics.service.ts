@@ -93,4 +93,59 @@ export class AnalyticsService {
       collectionRateByAmount: Math.round(collectionRateByAmount * 10) / 10,
     };
   }
+
+  async getAgentPerformance(tenantId: string, query: DateRange) {
+    const { fromDate, toDate } = this.parseDateRange(query);
+    const data = await this.analyticsRepo.getAgentPerformance(tenantId, fromDate, toDate);
+    
+    let successRate = 0;
+    if (data.successData.totalFollowedUp > 0) {
+      successRate = (data.successData.paidAfterFollowUp / data.successData.totalFollowedUp) * 100;
+    }
+
+    return {
+      emailsSent: data.runData.emailsSent,
+      successRate: Math.round(successRate * 10) / 10,
+      avgDaysToPayment: data.successData.avgDaysToPayment ? Math.round(data.successData.avgDaysToPayment * 10) / 10 : 0
+    };
+  }
+
+  async getChannelBreakdown(tenantId: string, query: DateRange) {
+    const { fromDate, toDate } = this.parseDateRange(query);
+    const data = await this.analyticsRepo.getChannelBreakdown(tenantId, fromDate, toDate);
+    
+    const channels = ['email', 'sms', 'whatsapp'];
+    const result = channels.map(channel => {
+      const found = data.find(d => d.channel === channel);
+      return {
+        channel,
+        count: found ? found.count : 0
+      };
+    });
+
+    return result;
+  }
+
+  async getTierEffectiveness(tenantId: string, query: DateRange) {
+    const { fromDate, toDate } = this.parseDateRange(query);
+    const data = await this.analyticsRepo.getTierEffectiveness(tenantId, fromDate, toDate);
+    
+    const allTiers = [
+      'stage_1_warm',
+      'stage_2_firm',
+      'stage_3_serious',
+      'stage_4_stern',
+      'legal_escalation'
+    ];
+
+    const result = allTiers.map(tier => {
+      const found = data.find(d => d.tier === tier);
+      return {
+        tier,
+        avgDaysToPayment: found && found.avgDaysToPayment ? Math.round(found.avgDaysToPayment * 10) / 10 : 0
+      };
+    });
+
+    return result;
+  }
 }
