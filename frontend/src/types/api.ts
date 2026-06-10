@@ -51,6 +51,7 @@ export interface Invoice {
 export interface InvoiceEvent {
   id: string;
   invoiceId: string;
+  invoiceNo?: string;
   eventType: string;
   payload: Record<string, any> | null;
   actor: string;
