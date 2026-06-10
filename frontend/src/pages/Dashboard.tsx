@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/Card";
 import { analyticsService } from "../services/analytics";
 import { agentService } from "../services/agent";
-import { dlqService } from "../services/dlq";
-import { AlertCircle, FileText, TrendingUp, DollarSign, Loader2, PieChart as PieChartIcon, BarChart3, Clock, Zap, ShieldAlert, AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertCircle, FileText, TrendingUp, DollarSign, Loader2, PieChart as PieChartIcon, BarChart3, Clock, Zap, AlertTriangle } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend
@@ -29,13 +27,7 @@ export function Dashboard() {
     refetchInterval: 30000,
   });
 
-  const { data: dlqData, isLoading: isDlqLoading } = useQuery({
-    queryKey: ['dlq-entries'],
-    queryFn: () => dlqService.getEntries(),
-    refetchInterval: 30000,
-  });
-
-  const isLoading = isSummaryLoading || isAgingLoading || isRunsLoading || isDlqLoading;
+  const isLoading = isSummaryLoading || isAgingLoading || isRunsLoading;
   const isError = isSummaryError;
 
   const formatCurrency = (val: number) => 
@@ -86,10 +78,6 @@ export function Dashboard() {
     ? `${((latestRun.emailsSent / latestRun.invoicesProcessed) * 100).toFixed(1)}%` 
     : (latestRun ? "0.0%" : "N/A");
 
-  const dlqEntries = dlqData || [];
-  const criticalDlqCount = dlqEntries.filter(e => e.consecutiveFailures >= 3).length;
-  const hasCriticalDlq = criticalDlqCount > 0;
-  
   const stage5Halted = agingData?.find(d => d.tier === 'legal_escalation')?.count || 0;
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -278,89 +266,9 @@ export function Dashboard() {
               <span className="text-lg font-semibold text-slate-900">{isRunsLoading ? "-" : automationYield}</span>
             </div>
             <div className="flex flex-col space-y-1 md:pl-8">
-              <span className="text-sm text-slate-500 flex items-center"><ShieldAlert className="w-4 h-4 mr-1.5 text-slate-400" /> DLQ Entries</span>
-              <span className={`text-lg font-semibold ${dlqEntries.length > 0 ? 'text-red-600' : 'text-slate-900'}`}>
-                {isDlqLoading ? "-" : dlqEntries.length}
-              </span>
-            </div>
-            <div className="flex flex-col space-y-1 md:pl-8">
               <span className="text-sm text-slate-500 flex items-center"><AlertTriangle className="w-4 h-4 mr-1.5 text-slate-400" /> Legal Escalations</span>
               <span className="text-lg font-semibold text-slate-900">{isAgingLoading ? "-" : stage5Halted}</span>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Phase B7: DLQ Summary Panel */}
-      <Card className="animate-in fade-in duration-500 slide-in-from-bottom-2 delay-500">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-lg font-semibold">Dead Letter Queue (DLQ)</CardTitle>
-            <CardDescription>Invoices that failed to process</CardDescription>
-          </div>
-          <Link to="/dlq" className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center transition-colors">
-            View All <ArrowRight className="w-4 h-4 ml-1" />
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {hasCriticalDlq && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3 flex items-start">
-              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
-              <div>
-                <h4 className="text-sm font-semibold text-red-800">Critical Delivery Failures</h4>
-                <p className="text-sm text-red-700 mt-1">
-                  You have {criticalDlqCount} invoice(s) that have failed delivery 3 or more times. They require immediate manual intervention.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="border border-slate-200 rounded-md overflow-hidden">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 text-slate-500 font-medium">
-                <tr>
-                  <th className="px-4 py-3 border-b border-slate-200">Client & Invoice</th>
-                  <th className="px-4 py-3 border-b border-slate-200">Failures</th>
-                  <th className="px-4 py-3 border-b border-slate-200">Last Error</th>
-                  <th className="px-4 py-3 border-b border-slate-200">Last Attempt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {isDlqLoading ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-slate-500">Loading DLQ...</td>
-                  </tr>
-                ) : dlqEntries.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-slate-500">No failed invoices in the queue. Everything is healthy!</td>
-                  </tr>
-                ) : (
-                  dlqEntries.slice(0, 5).map((entry) => (
-                    <tr key={entry.invoiceId} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-slate-900 truncate max-w-[200px]" title={entry.clientName || entry.invoiceId}>
-                        <Link to={`/invoices/${entry.invoiceId}`} className="text-blue-600 hover:text-blue-800 hover:underline">
-                          {entry.clientName || 'Unknown Client'}
-                        </Link>
-                        <div className="text-xs text-slate-500 font-normal">
-                          {entry.invoiceNo || entry.invoiceId.substring(0, 8)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${entry.consecutiveFailures >= 3 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {entry.consecutiveFailures} times
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 truncate max-w-[300px]" title={entry.lastError || 'Unknown Error'}>
-                        {entry.lastError || 'Unknown Error'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {new Date(entry.lastFailure).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
         </CardContent>
       </Card>

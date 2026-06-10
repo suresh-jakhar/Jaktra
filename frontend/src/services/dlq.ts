@@ -6,4 +6,9 @@ export const dlqService = {
     const response = await api.get('/dlq');
     return response.data;
   },
+
+  deleteEntry: async (invoiceId: string): Promise<{ success: boolean }> => {
+    const response = await api.delete(`/dlq/${invoiceId}`);
+    return response.data;
+  },
 };
