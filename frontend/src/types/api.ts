@@ -23,9 +23,41 @@ export interface ApiError {
 // Pagination generic
 export interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface Invoice {
+  id: string;
+  tenantId: string;
+  invoiceNo: string;
+  clientName: string;
+  invoiceAmount: string; // Stored as numeric string
+  dueDate: string;
+  paymentStatus: 'Pending' | 'Paid' | 'Overdue';
+  contactEmail: string;
+  followupCount: number;
+  lastFollowupDate: string | null;
+  urgencyTier: string | null;
+  daysOverdue?: number; // Calculated on the fly
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListInvoicesParams {
+  page?: number;
+  limit?: number;
+  sort_by?: 'invoiceNo' | 'clientName' | 'invoiceAmount' | 'dueDate' | 'paymentStatus' | 'followupCount' | 'createdAt';
+  order?: 'asc' | 'desc';
+  status?: string[];
+  urgency_tier?: string[];
+  client_name?: string;
+  days_overdue_min?: number;
+  days_overdue_max?: number;
 }
 
 export interface AnalyticsSummary {
