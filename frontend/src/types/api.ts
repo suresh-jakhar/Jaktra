@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   tenant_id: string;
+  name: string;
   email: string;
   role: "admin" | "manager" | "viewer";
   created_at: string;
