@@ -11,10 +11,16 @@ const registerSchema = z.object({
   role: z.enum(['admin', 'manager', 'viewer']).optional(),
 });
 
+const onboardSchema = z.object({
+  name: z.string().min(1),
+  companyName: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  tenantId: z.string().uuid(),
 });
 
 export class AuthController {
@@ -38,7 +44,24 @@ export class AuthController {
       throw err;
     }
   };
+  onboard = async (req: Request, res: Response): Promise<void> => {
+    const parsed = onboardSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+      return;
+    }
 
+    try {
+      const result = await this.authService.onboard(parsed.data);
+      res.status(201).json(result);
+    } catch (err: unknown) {
+      if (err instanceof AuthError) {
+        res.status(err.statusCode).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  };
   login = async (req: Request, res: Response): Promise<void> => {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {

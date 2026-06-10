@@ -15,10 +15,16 @@ export interface RegisterInput {
   role?: 'admin' | 'manager' | 'viewer';
 }
 
+export interface OnboardInput {
+  name: string;
+  email: string;
+  password: string;
+  companyName: string;
+}
+
 export interface LoginInput {
   email: string;
   password: string;
-  tenantId: string;
 }
 
 export interface AuthResult {
@@ -57,8 +63,28 @@ export class AuthService {
     return { user: this.stripHash(user), token };
   }
 
+  async onboard(input: OnboardInput): Promise<AuthResult> {
+    const existing = await this.userRepo.findFirstByEmail(input.email);
+    if (existing) {
+      throw new AuthError('Email already registered', 409);
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+    
+    // Generate slug from company name
+    const slug = input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+    const { user } = await this.userRepo.createTenantWithAdmin(
+      { name: input.companyName, slug },
+      { name: input.name, email: input.email, passwordHash, role: 'admin' }
+    );
+
+    const token = this.signToken(user);
+    return { user: this.stripHash(user), token };
+  }
+
   async login(input: LoginInput): Promise<AuthResult> {
-    const user = await this.userRepo.findByEmail(input.email, input.tenantId);
+    const user = await this.userRepo.findFirstByEmail(input.email);
     if (!user) {
       throw new AuthError('Invalid email or password', 401);
     }

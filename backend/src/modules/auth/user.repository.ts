@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm';
 import { users, tenants } from '../../db/index.js';
 import type { DatabaseClient } from '../../db/index.js';
-import type { User, NewUser } from '../../db/index.js';
+import type { User, NewUser, Tenant, NewTenant } from '../../db/index.js';
 
 export class UserRepository {
   constructor(private db: DatabaseClient) {}
@@ -11,6 +11,16 @@ export class UserRepository {
       .select()
       .from(users)
       .where(and(eq(users.email, email), eq(users.tenantId, tenantId)))
+      .limit(1);
+
+    return rows[0];
+  }
+
+  async findFirstByEmail(email: string): Promise<User | undefined> {
+    const rows = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
       .limit(1);
 
     return rows[0];
@@ -39,5 +49,32 @@ export class UserRepository {
       .limit(1);
 
     return rows.length > 0;
+  }
+
+  async createTenantWithAdmin(
+    tenantData: NewTenant,
+    userData: Omit<NewUser, 'tenantId'>
+  ): Promise<{ tenant: Tenant; user: User }> {
+    return await this.db.transaction(async (tx) => {
+      // 1. Create the tenant
+      const insertedTenants = await tx
+        .insert(tenants)
+        .values(tenantData)
+        .returning();
+      const newTenant = insertedTenants[0]!;
+
+      // 2. Create the admin user
+      const insertedUsers = await tx
+        .insert(users)
+        .values({
+          ...userData,
+          tenantId: newTenant.id,
+          role: 'admin',
+        })
+        .returning();
+      const newAdmin = insertedUsers[0]!;
+
+      return { tenant: newTenant, user: newAdmin };
+    });
   }
 }
