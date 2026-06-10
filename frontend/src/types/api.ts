@@ -93,6 +93,10 @@ export interface AgentRun {
   errorDetails: string | null;
 }
 
+export interface AgentRunDetail extends AgentRun {
+  events: InvoiceEvent[];
+}
+
 export interface AgentRunsResponse {
   runs: AgentRun[];
   total: number;
