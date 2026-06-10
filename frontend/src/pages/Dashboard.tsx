@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/Card";
 import { analyticsService } from "../services/analytics";
-import { AlertCircle, FileText, TrendingUp, DollarSign, Loader2, PieChart as PieChartIcon, BarChart3 } from "lucide-react";
+import { agentService } from "../services/agent";
+import { dlqService } from "../services/dlq";
+import { AlertCircle, FileText, TrendingUp, DollarSign, Loader2, PieChart as PieChartIcon, BarChart3, Clock, Zap, ShieldAlert, AlertTriangle, ArrowRight } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend
@@ -20,7 +23,19 @@ export function Dashboard() {
     refetchInterval: 30000,
   });
 
-  const isLoading = isSummaryLoading || isAgingLoading;
+  const { data: runsData, isLoading: isRunsLoading } = useQuery({
+    queryKey: ['agent-runs'],
+    queryFn: () => agentService.getRuns(),
+    refetchInterval: 30000,
+  });
+
+  const { data: dlqData, isLoading: isDlqLoading } = useQuery({
+    queryKey: ['dlq-entries'],
+    queryFn: () => dlqService.getEntries(),
+    refetchInterval: 30000,
+  });
+
+  const isLoading = isSummaryLoading || isAgingLoading || isRunsLoading || isDlqLoading;
   const isError = isSummaryError;
 
   const formatCurrency = (val: number) => 
@@ -61,6 +76,21 @@ export function Dashboard() {
     value: d.totalAmount,
     fill: tierConfig[d.tier]?.color || '#cbd5e1'
   }));
+
+  // Dispatch Performance Calculations
+  const latestRun = runsData?.runs?.[0];
+  const lastBatchSent = latestRun ? new Date(latestRun.startTime).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  }) : 'Never';
+  const automationYield = latestRun && latestRun.invoicesProcessed > 0 
+    ? `${((latestRun.emailsSent / latestRun.invoicesProcessed) * 100).toFixed(1)}%` 
+    : (latestRun ? "0.0%" : "N/A");
+
+  const dlqEntries = dlqData || [];
+  const criticalDlqCount = dlqEntries.filter(e => e.consecutiveFailures >= 3).length;
+  const hasCriticalDlq = criticalDlqCount > 0;
+  
+  const stage5Halted = agingData?.find(d => d.tier === 'legal_escalation')?.count || 0;
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -173,7 +203,7 @@ export function Dashboard() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={agingChartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <XAxis type="number" tickFormatter={(val) => `$${val/1000}k`} stroke="#94a3b8" fontSize={12} />
+                    <XAxis type="number" tickFormatter={(val) => Intl.NumberFormat('en-US', { notation: 'compact', style: 'currency', currency: 'USD' }).format(val)} stroke="#94a3b8" fontSize={12} />
                     <YAxis dataKey="name" type="category" width={120} stroke="#94a3b8" fontSize={12} />
                     <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -229,6 +259,106 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Phase B7: Dispatch Performance Row */}
+      <Card className="animate-in fade-in duration-500 slide-in-from-bottom-2 delay-400">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+            Dispatch Performance (Latest Run)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 divide-x-0 md:divide-x divide-slate-100">
+            <div className="flex flex-col space-y-1">
+              <span className="text-sm text-slate-500 flex items-center"><Clock className="w-4 h-4 mr-1.5 text-slate-400" /> Last Batch Sent</span>
+              <span className="text-lg font-semibold text-slate-900">{isRunsLoading ? "-" : lastBatchSent}</span>
+            </div>
+            <div className="flex flex-col space-y-1 md:pl-8">
+              <span className="text-sm text-slate-500 flex items-center"><Zap className="w-4 h-4 mr-1.5 text-slate-400" /> Automation Yield</span>
+              <span className="text-lg font-semibold text-slate-900">{isRunsLoading ? "-" : automationYield}</span>
+            </div>
+            <div className="flex flex-col space-y-1 md:pl-8">
+              <span className="text-sm text-slate-500 flex items-center"><ShieldAlert className="w-4 h-4 mr-1.5 text-slate-400" /> DLQ Entries</span>
+              <span className={`text-lg font-semibold ${dlqEntries.length > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                {isDlqLoading ? "-" : dlqEntries.length}
+              </span>
+            </div>
+            <div className="flex flex-col space-y-1 md:pl-8">
+              <span className="text-sm text-slate-500 flex items-center"><AlertTriangle className="w-4 h-4 mr-1.5 text-slate-400" /> Legal Escalations</span>
+              <span className="text-lg font-semibold text-slate-900">{isAgingLoading ? "-" : stage5Halted}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Phase B7: DLQ Summary Panel */}
+      <Card className="animate-in fade-in duration-500 slide-in-from-bottom-2 delay-500">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold">Dead Letter Queue (DLQ)</CardTitle>
+            <CardDescription>Invoices that failed to process</CardDescription>
+          </div>
+          <Link to="/dlq" className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center transition-colors">
+            View All <ArrowRight className="w-4 h-4 ml-1" />
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {hasCriticalDlq && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3 flex items-start">
+              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+              <div>
+                <h4 className="text-sm font-semibold text-red-800">Critical Delivery Failures</h4>
+                <p className="text-sm text-red-700 mt-1">
+                  You have {criticalDlqCount} invoice(s) that have failed delivery 3 or more times. They require immediate manual intervention.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="border border-slate-200 rounded-md overflow-hidden">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-500 font-medium">
+                <tr>
+                  <th className="px-4 py-3 border-b border-slate-200">Invoice ID</th>
+                  <th className="px-4 py-3 border-b border-slate-200">Failures</th>
+                  <th className="px-4 py-3 border-b border-slate-200">Last Error</th>
+                  <th className="px-4 py-3 border-b border-slate-200">Last Attempt</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {isDlqLoading ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-500">Loading DLQ...</td>
+                  </tr>
+                ) : dlqEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-500">No failed invoices in the queue. Everything is healthy!</td>
+                  </tr>
+                ) : (
+                  dlqEntries.slice(0, 5).map((entry) => (
+                    <tr key={entry.invoiceId} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-900 truncate max-w-[150px]" title={entry.invoiceId}>
+                        {entry.invoiceId.substring(0, 8)}...
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${entry.consecutiveFailures >= 3 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {entry.consecutiveFailures} times
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 truncate max-w-[300px]" title={entry.lastError || 'Unknown Error'}>
+                        {entry.lastError || 'Unknown Error'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {new Date(entry.lastFailure).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

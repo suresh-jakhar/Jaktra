@@ -40,3 +40,27 @@ export interface AgingTier {
   totalAmount: number;
   count: number;
 }
+
+export interface AgentRun {
+  id: string;
+  status: string;
+  startTime: string;
+  endTime: string | null;
+  invoicesProcessed: number;
+  emailsSent: number;
+  errors: number;
+  errorDetails: string | null;
+}
+
+export interface AgentRunsResponse {
+  runs: AgentRun[];
+  total: number;
+}
+
+export interface DlqEntry {
+  invoiceId: string;
+  consecutiveFailures: number;
+  lastError: string | null;
+  firstFailure: string;
+  lastFailure: string;
+}
