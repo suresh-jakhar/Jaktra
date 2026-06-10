@@ -107,3 +107,21 @@ export interface DlqEntry {
   clientName: string | null;
   invoiceNo: string | null;
 }
+
+export interface Communication {
+  id: string;
+  invoiceId: string;
+  tenantId: string;
+  channel: string;
+  recipient: string;
+  subject: string | null;
+  body: string;
+  status: 'pending' | 'sent' | 'delivered' | 'failed' | 'opened' | 'clicked';
+  errorMsg: string | null;
+  providerMessageId: string | null;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  openedAt: string | null;
+  clickedAt: string | null;
+  createdAt: string;
+}

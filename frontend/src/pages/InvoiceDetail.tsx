@@ -4,9 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoiceService } from "../services/invoice";
 import { eventService } from "../services/event";
 import { agentService } from "../services/agent";
+import { communicationService } from "../services/communication";
 import { Badge } from "../components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
 import { EditInvoiceModal } from "../components/invoices/EditInvoiceModal";
+import { CommunicationList } from "../components/invoices/CommunicationList";
+import { CommunicationStats } from "../components/invoices/CommunicationStats";
 import { 
   ArrowLeft, 
   Mail, 
@@ -38,6 +41,7 @@ export function InvoiceDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'timeline' | 'emails'>('timeline');
 
   const { data: invoice, isLoading: isInvoiceLoading } = useQuery({
     queryKey: ["invoice", id],
@@ -48,6 +52,12 @@ export function InvoiceDetail() {
   const { data: timeline, isLoading: isTimelineLoading } = useQuery({
     queryKey: ["invoice-timeline", id],
     queryFn: () => eventService.getInvoiceTimeline(id!),
+    enabled: !!id,
+  });
+
+  const { data: communications, isLoading: isCommsLoading } = useQuery({
+    queryKey: ["invoice-communications", id],
+    queryFn: () => communicationService.getInvoiceCommunications(id!),
     enabled: !!id,
   });
 
@@ -67,6 +77,7 @@ export function InvoiceDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoice-timeline", id] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-communications", id] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
     }
   });
@@ -244,47 +255,82 @@ export function InvoiceDetail() {
           </Card>
         </div>
 
-        {/* Timeline */}
+        {/* Tabs Area */}
         <div className="md:col-span-2">
-          <Card id="timeline" className="h-full">
-            <CardHeader>
-              <CardTitle>Communication History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isTimelineLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                </div>
-              ) : !timeline || timeline.length === 0 ? (
-                <div className="text-center py-8 text-slate-500">
-                  No events recorded for this invoice yet.
-                </div>
+          <Card id="history-tabs" className="h-full">
+            <div className="flex border-b border-slate-200">
+              <button
+                className={`flex-1 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'timeline' 
+                    ? 'border-blue-600 text-blue-600' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+                onClick={() => setActiveTab('timeline')}
+              >
+                Event Timeline
+              </button>
+              <button
+                className={`flex-1 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'emails' 
+                    ? 'border-blue-600 text-blue-600' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+                onClick={() => setActiveTab('emails')}
+              >
+                Emails & Messages
+              </button>
+            </div>
+            
+            <CardContent className="pt-6">
+              {activeTab === 'timeline' ? (
+                // TIMELINE TAB
+                isTimelineLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  </div>
+                ) : !timeline || timeline.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    No events recorded for this invoice yet.
+                  </div>
+                ) : (
+                  <div className="relative border-l border-slate-200 ml-3 space-y-8 py-2">
+                    {timeline.map((event) => (
+                      <div key={event.id} className="relative pl-8">
+                        <div className="absolute -left-3.5 top-1 h-7 w-7 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                          {renderEventIcon(event.eventType)}
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="font-medium text-slate-900 capitalize">
+                              {event.eventType.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium">
+                              {new Date(event.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600 mt-2">
+                            {renderEventDescription(event.eventType, event.payload)}
+                          </div>
+                          <div className="mt-3 text-xs text-slate-400 flex items-center">
+                            <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded capitalize">Actor: {event.actor}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
               ) : (
-                <div className="relative border-l border-slate-200 ml-3 space-y-8 py-2">
-                  {timeline.map((event) => (
-                    <div key={event.id} className="relative pl-8">
-                      <div className="absolute -left-3.5 top-1 h-7 w-7 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
-                        {renderEventIcon(event.eventType)}
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium text-slate-900 capitalize">
-                            {event.eventType.replace(/_/g, ' ')}
-                          </span>
-                          <span className="text-xs text-slate-500 font-medium">
-                            {new Date(event.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-sm text-slate-600 mt-2">
-                          {renderEventDescription(event.eventType, event.payload)}
-                        </div>
-                        <div className="mt-3 text-xs text-slate-400 flex items-center">
-                          <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded capitalize">Actor: {event.actor}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                // EMAILS TAB
+                isCommsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  </div>
+                ) : (
+                  <div>
+                    <CommunicationStats communications={communications || []} />
+                    <CommunicationList communications={communications || []} />
+                  </div>
+                )
               )}
             </CardContent>
           </Card>
