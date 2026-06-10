@@ -181,7 +181,12 @@ export class AgentService {
     const run = await this.agentRepo.getRunById(runId, tenantId);
     if (!run) return null;
 
-    // Could also fetch events tied to this run if needed
-    return run;
+    // Fetch events tied to this run
+    const events = await this.eventRepo.findByRunId(runId);
+    
+    return {
+      ...run,
+      events
+    };
   }
 }
