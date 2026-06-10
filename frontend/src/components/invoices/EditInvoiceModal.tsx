@@ -1,51 +1,55 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../ui/Modal";
 import { invoiceService } from "../../services/invoice";
+import type { Invoice } from "../../types/api";
 import { Loader2 } from "lucide-react";
 
-interface CreateInvoiceModalProps {
+interface EditInvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
+  invoice: Invoice;
 }
 
-export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps) {
+export function EditInvoiceModal({ isOpen, onClose, invoice }: EditInvoiceModalProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    invoiceNo: "",
-    clientName: "",
-    invoiceAmount: "",
-    dueDate: "",
-    contactEmail: "",
+    clientName: invoice.clientName,
+    invoiceAmount: invoice.invoiceAmount,
+    dueDate: invoice.dueDate.split('T')[0],
+    contactEmail: invoice.contactEmail,
   });
+
+  useEffect(() => {
+    setFormData({
+      clientName: invoice.clientName,
+      invoiceAmount: invoice.invoiceAmount,
+      dueDate: invoice.dueDate.split('T')[0],
+      contactEmail: invoice.contactEmail,
+    });
+  }, [invoice]);
 
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: (data: Parameters<typeof invoiceService.createInvoice>[0]) => invoiceService.createInvoice(data),
+    mutationFn: (data: Parameters<typeof invoiceService.updateInvoice>[1]) => invoiceService.updateInvoice(invoice.id, data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", invoice.id] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["analytics-summary"] });
       queryClient.invalidateQueries({ queryKey: ["analytics-aging"] });
       onClose();
-      setFormData({
-        invoiceNo: "",
-        clientName: "",
-        invoiceAmount: "",
-        dueDate: "",
-        contactEmail: "",
-      });
       setError(null);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.error || err.message || "Failed to create invoice.");
+      setError(err?.response?.data?.error || err.message || "Failed to update invoice.");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!formData.invoiceNo || !formData.clientName || !formData.invoiceAmount || !formData.dueDate || !formData.contactEmail) {
+    if (!formData.clientName || !formData.invoiceAmount || !formData.dueDate || !formData.contactEmail) {
       setError("Please fill out all fields.");
       return;
     }
@@ -55,7 +59,6 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
       invoiceAmount: parseFloat(formData.invoiceAmount as string)
     };
     
-    // Additional basic validations could go here
     mutation.mutate(payload);
   };
 
@@ -67,8 +70,8 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add New Invoice"
-      description="Manually add a single invoice to the system."
+      title={`Edit Invoice ${invoice.invoiceNo}`}
+      description="Update client details or amounts."
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -76,34 +79,6 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
             {error}
           </div>
         )}
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label htmlFor="invoiceNo" className="text-sm font-medium text-slate-700">Invoice Number</label>
-            <input
-              id="invoiceNo"
-              name="invoiceNo"
-              type="text"
-              required
-              value={formData.invoiceNo}
-              onChange={handleChange}
-              placeholder="INV-001"
-              className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="dueDate" className="text-sm font-medium text-slate-700">Due Date</label>
-            <input
-              id="dueDate"
-              name="dueDate"
-              type="date"
-              required
-              value={formData.dueDate}
-              onChange={handleChange}
-              className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-            />
-          </div>
-        </div>
 
         <div className="space-y-2">
           <label htmlFor="clientName" className="text-sm font-medium text-slate-700">Client Name</label>
@@ -114,7 +89,6 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
             required
             value={formData.clientName}
             onChange={handleChange}
-            placeholder="Acme Corp"
             className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
           />
         </div>
@@ -128,25 +102,37 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
             required
             value={formData.contactEmail}
             onChange={handleChange}
-            placeholder="billing@acmecorp.com"
             className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
           />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="invoiceAmount" className="text-sm font-medium text-slate-700">Amount ($)</label>
-          <input
-            id="invoiceAmount"
-            name="invoiceAmount"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={formData.invoiceAmount}
-            onChange={handleChange}
-            placeholder="1500.00"
-            className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="dueDate" className="text-sm font-medium text-slate-700">Due Date</label>
+            <input
+              id="dueDate"
+              name="dueDate"
+              type="date"
+              required
+              value={formData.dueDate}
+              onChange={handleChange}
+              className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="invoiceAmount" className="text-sm font-medium text-slate-700">Amount ($)</label>
+            <input
+              id="invoiceAmount"
+              name="invoiceAmount"
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              value={formData.invoiceAmount}
+              onChange={handleChange}
+              className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+            />
+          </div>
         </div>
 
         <div className="pt-4 flex justify-end space-x-3">
@@ -167,7 +153,7 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
               </>
             ) : (
-              "Save Invoice"
+              "Save Changes"
             )}
           </button>
         </div>

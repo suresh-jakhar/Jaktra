@@ -16,8 +16,23 @@ export const invoiceService = {
     return response.data;
   },
 
-  createInvoice: async (data: Omit<Invoice, 'id' | 'tenantId' | 'paymentStatus' | 'followupCount' | 'createdAt' | 'updatedAt' | 'lastFollowupDate' | 'urgencyTier' | 'daysOverdue'>) => {
+  createInvoice: async (data: Omit<Invoice, 'id' | 'tenantId' | 'paymentStatus' | 'followupCount' | 'createdAt' | 'updatedAt' | 'lastFollowupDate' | 'urgencyTier' | 'daysOverdue' | 'invoiceAmount'> & { invoiceAmount: number | string }) => {
     const response = await api.post('/invoices', data);
+    return response.data;
+  },
+
+  getInvoice: async (id: string): Promise<Invoice> => {
+    const response = await api.get(`/invoices/${id}`);
+    return response.data;
+  },
+
+  updateInvoice: async (id: string, data: Partial<Omit<Invoice, 'invoiceAmount'>> & { invoiceAmount?: number | string }) => {
+    const response = await api.patch(`/invoices/${id}`, data);
+    return response.data;
+  },
+
+  updateInvoiceStatus: async (id: string, status: string) => {
+    const response = await api.patch(`/invoices/${id}/status`, { paymentStatus: status });
     return response.data;
   },
 

@@ -48,6 +48,15 @@ export interface Invoice {
   updatedAt: string;
 }
 
+export interface InvoiceEvent {
+  id: string;
+  invoiceId: string;
+  eventType: string;
+  payload: Record<string, any> | null;
+  actor: string;
+  createdAt: string;
+}
+
 export interface ListInvoicesParams {
   page?: number;
   limit?: number;
