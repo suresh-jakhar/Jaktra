@@ -10,6 +10,14 @@ export const authService = {
     return response.data;
   },
 
+  async onboard(data: Record<string, string>): Promise<AuthResponse> {
+    const response = await api.post<AuthResponse>("/auth/onboard", data);
+    if (response.data.token) {
+      localStorage.setItem("auth_token", response.data.token);
+    }
+    return response.data;
+  },
+
   async register(data: Record<string, string>): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>("/auth/register", data);
     if (response.data.token) {
