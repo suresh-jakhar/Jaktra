@@ -83,6 +83,40 @@ export interface AgingTier {
   count: number;
 }
 
+export interface AgentPerformance {
+  totalRuns: number;
+  invoicesProcessed: number;
+  emailsSent: number;
+  automationYield: number;
+  errorRate: number;
+  successRate: number;
+  avgDaysToPayment: number;
+}
+
+export interface EmailVolume {
+  date: string;
+  emailsSent: number;
+}
+
+export interface ChannelBreakdown {
+  channel: string;
+  count: number;
+}
+
+export interface TierEffectiveness {
+  tier: string;
+  avgDaysToPayment: number;
+  successRate: number;
+}
+
+export interface CommunicationStats {
+  totalSent: number;
+  totalOpened: number;
+  totalClicked: number;
+  openRate: number;
+  clickRate: number;
+}
+
 export interface AgentRun {
   id: string;
   status: string;
