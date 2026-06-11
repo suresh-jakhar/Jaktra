@@ -22,7 +22,8 @@ export const userRoleEnum = pgEnum('user_role', [
   'viewer',
 ]);
 
-export const providerEnum = pgEnum('integration_provider', ['sendgrid']);
+export const providerEnum = pgEnum('integration_provider', ['sendgrid', 'smtp']);
+export const defaultEmailProviderEnum = pgEnum('default_email_provider', ['sendgrid', 'smtp']);
 export const validationResultEnum = pgEnum('validation_result', [
   'valid', 'invalid', 'revoked', 'insufficient_scope', 'unverified_sender', 'unknown'
 ]);
@@ -126,7 +127,7 @@ export const invoices = pgTable(
     index('invoices_external_ref_id_idx').on(table.externalRefId),
   ]
 );
- 
+
 export const communications = pgTable(
   'communications',
   {
@@ -147,7 +148,7 @@ export const communications = pgTable(
       .defaultNow(),
   },
   (table) => [
- 
+
     index('communications_invoice_id_status_sent_at_idx').on(
       table.invoiceId,
       table.status,
@@ -238,26 +239,27 @@ export const tenantSettings = pgTable('tenant_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
+  defaultEmailProvider: defaultEmailProviderEnum('default_email_provider'),
 });
 
 export const tenantIntegrations = pgTable('tenant_integrations', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   provider: providerEnum('provider').notNull(),
-  
+
   ciphertext: text('ciphertext').notNull(),
   iv: text('iv').notNull(),
   authTag: text('auth_tag').notNull(),
   keyVersion: integer('key_version').notNull().default(1),
-  
+
   lastValidatedAt: timestamp('last_validated_at', { withTimezone: true }),
   lastValidationResult: validationResultEnum('last_validation_result').notNull().default('unknown'),
   lastOperationalErrorCode: text('last_operational_error_code'),
-  
+
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => {
-  return { 
+  return {
     tenantProviderUniq: unique('tenant_integrations_tenant_provider_uniq').on(table.tenantId, table.provider)
   };
 });

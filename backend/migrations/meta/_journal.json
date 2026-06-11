@@ -22,6 +22,13 @@
       "when": 1781155074712,
       "tag": "0002_add_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781171739676,
+      "tag": "0003_add_smtp",
+      "breakpoints": true
     }
   ]
 }

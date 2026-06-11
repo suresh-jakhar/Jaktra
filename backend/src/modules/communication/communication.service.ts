@@ -17,7 +17,8 @@ export type CreateCommunicationInput = z.infer<typeof createCommunicationSchema>
 
 import type { EventRepository } from '../event/event.repository.js';
 import type { IntegrationService } from '../settings/integration.service.js';
-import { MailService } from '@sendgrid/mail';
+import { SendgridProvider } from './providers/sendgrid.provider.js';
+import { SmtpProvider } from './providers/smtp.provider.js';
 
 export interface SendCommunicationOptions {
   tenantId: string;
@@ -100,31 +101,36 @@ export class CommunicationService {
       throw new CommunicationError('Communication settings not configured for this tenant', 400);
     }
 
-    const apiKey = await this.integrationService.getDecryptedSendgridKey(tenantId).catch(() => {
-      throw new CommunicationError('Email provider not configured or invalid. Go to Settings → Email Configuration.', 400);
-    });
-
     const from = {
       name: settings.senderName,
       email: settings.senderEmail,
     };
-
     const replyTo = settings.replyTo ? { email: settings.replyTo } : undefined;
 
-    const sgMail = new MailService();
-    sgMail.setApiKey(apiKey);
+    const defaultProvider = (settings as any).defaultEmailProvider;
+    if (!defaultProvider) {
+      throw new CommunicationError('EMAIL_PROVIDER_NOT_CONFIGURED', 400);
+    }
 
     try {
-      await sgMail.send({
-        to,
-        from,
-        replyTo,
-        subject,
-        html,
-      });
-      return true;
+      if (defaultProvider === 'sendgrid') {
+        const apiKey = await this.integrationService.getDecryptedSendgridKey(tenantId);
+        const provider = new SendgridProvider(apiKey);
+        await provider.sendEmail(to, from, replyTo, subject, html);
+        return true;
+      } else if (defaultProvider === 'smtp') {
+        const smtpConfig = await this.integrationService.getDecryptedSmtpConfig(tenantId);
+        const provider = new SmtpProvider(smtpConfig);
+        await provider.sendEmail(to, from, replyTo, subject, html);
+        return true;
+      } else {
+        throw new CommunicationError(`Unsupported default email provider: ${defaultProvider}`, 400);
+      }
     } catch (error: any) {
-      await this.integrationService.handleDeliveryError(tenantId, 'sendgrid', error);
+      // Re-throw specific errors as CommunicationError if needed
+      if (error instanceof CommunicationError) throw error;
+      
+      await this.integrationService.handleDeliveryError(tenantId, defaultProvider, error);
       throw error;
     }
   }
@@ -151,6 +157,10 @@ export class CommunicationService {
       replyTo: replyTo || null,
       idempotencyWindowHours,
     });
+  }
+
+  async setDefaultEmailProvider(tenantId: string, provider: 'sendgrid' | 'smtp' | null): Promise<void> {
+    await this.communicationRepo.setDefaultEmailProvider(tenantId, provider);
   }
 }
 

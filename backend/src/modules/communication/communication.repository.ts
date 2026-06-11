@@ -84,4 +84,11 @@ export class CommunicationRepository {
       .returning();
     return upserted;
   }
+
+  async setDefaultEmailProvider(tenantId: string, provider: 'sendgrid' | 'smtp' | null): Promise<void> {
+    await this.db
+      .update(tenantSettings)
+      .set({ defaultEmailProvider: provider, updatedAt: new Date() })
+      .where(eq(tenantSettings.tenantId, tenantId));
+  }
 }
