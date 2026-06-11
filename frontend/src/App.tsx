@@ -8,6 +8,7 @@ import { InvoiceDetail } from "./pages/InvoiceDetail";
 import { Agent } from "./pages/Agent";
 import { DLQ } from "./pages/DLQ";
 import { Analytics } from "./pages/Analytics";
+import { Settings } from "./pages/Settings";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function App() {
@@ -26,7 +27,7 @@ function App() {
           <Route path="/agent" element={<Agent />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/dlq" element={<DLQ />} />
-          <Route path="/settings" element={<div className="p-4 text-slate-500">Settings Page Placeholder</div>} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>
     </Routes>

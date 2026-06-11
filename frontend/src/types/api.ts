@@ -164,3 +164,15 @@ export interface Communication {
   clickedAt: string | null;
   createdAt: string;
 }
+
+export interface TenantSettings {
+  companyName: string;
+  senderName: string;
+  senderEmail: string;
+  replyTo: string | null;
+  paymentLink: string | null;
+  bankDetails: string | null;
+  timezone: string;
+  scheduleHour: number;
+  idempotencyWindowHours: number;
+}

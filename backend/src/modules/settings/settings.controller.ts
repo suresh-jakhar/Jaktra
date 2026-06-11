@@ -2,22 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import type { SettingsService } from './settings.service.js';
 
-const updateSettingsSchema = z.object({
-  companyName: z.string().optional(),
-  replyToEmail: z.string().email().optional(),
-  agentName: z.string().optional(),
-  timezone: z.string().optional(),
-  businessHours: z.object({
-    start: z.string(),
-    end: z.string(),
-  }).optional(),
-  paymentLinksEnabled: z.boolean().optional(),
-  paymentProvider: z.string().optional(),
-  stripeAccountId: z.string().optional(),
-  razorpayMerchantId: z.string().optional(),
-  emailProvider: z.string().optional(),
-  sendgridApiKey: z.string().optional(),
-});
+import { updateSettingsSchema } from './settings.service.js';
 
 export class SettingsController {
   constructor(private settingsService: SettingsService) {}
