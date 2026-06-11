@@ -8,13 +8,6 @@ import { AuthError } from '../../shared/errors/index.js';
 
 const SALT_ROUNDS = 12;
 
-export interface RegisterInput {
-  email: string;
-  password: string;
-  tenantId: string;
-  role?: 'admin' | 'manager' | 'viewer';
-}
-
 export interface OnboardInput {
   name: string;
   email: string;
@@ -39,32 +32,11 @@ export class AuthService {
     private jwtExpiresIn: string,
   ) {}
 
-  async register(input: RegisterInput): Promise<AuthResult> {
-    const exists = await this.userRepo.tenantExists(input.tenantId);
-    if (!exists) {
-      throw new AuthError('Tenant not found', 404);
-    }
 
-    const existing = await this.userRepo.findByEmail(input.email, input.tenantId);
-    if (existing) {
-      throw new AuthError('Email already registered for this tenant', 409);
-    }
-
-    const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
-
-    const user = await this.userRepo.create({
-      email: input.email,
-      passwordHash,
-      tenantId: input.tenantId,
-      role: input.role ?? 'viewer',
-    });
-
-    const token = this.signToken(user);
-    return { user: this.stripHash(user), token };
-  }
 
   async onboard(input: OnboardInput): Promise<AuthResult> {
-    const existing = await this.userRepo.findFirstByEmail(input.email);
+    const normalizedEmail = input.email.toLowerCase().trim();
+    const existing = await this.userRepo.findFirstByEmail(normalizedEmail);
     if (existing) {
       throw new AuthError('Email already registered', 409);
     }
@@ -76,7 +48,7 @@ export class AuthService {
 
     const { user } = await this.userRepo.createTenantWithAdmin(
       { name: input.companyName, slug },
-      { name: input.name, email: input.email, passwordHash, role: 'admin' }
+      { name: input.name, email: normalizedEmail, passwordHash, role: 'admin' }
     );
 
     const token = this.signToken(user);
@@ -84,7 +56,8 @@ export class AuthService {
   }
 
   async login(input: LoginInput): Promise<AuthResult> {
-    const user = await this.userRepo.findFirstByEmail(input.email);
+    const normalizedEmail = input.email.toLowerCase().trim();
+    const user = await this.userRepo.findFirstByEmail(normalizedEmail);
     if (!user) {
       throw new AuthError('Invalid email or password', 401);
     }
@@ -104,6 +77,20 @@ export class AuthService {
     } catch {
       throw new AuthError('Invalid or expired token', 401);
     }
+  }
+
+  async verifyAndFetchUser(token: string): Promise<JwtPayload> {
+    const payload = this.verifyToken(token);
+    const user = await this.userRepo.findById(payload.userId);
+    if (!user) {
+      throw new AuthError('User no longer exists', 401);
+    }
+    return {
+      userId: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+      role: user.role,
+    };
   }
 
   async refreshToken(token: string): Promise<AuthResult> {

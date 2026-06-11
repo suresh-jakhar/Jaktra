@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
 import { csvUpload } from '../../middleware/csv-upload.js';
 import { InvoiceController } from './invoice.controller.js';
+import { requireRole } from '../../middleware/require-role.js';
 
 export function createInvoiceRouter(
   invoiceController: InvoiceController,
@@ -9,16 +10,16 @@ export function createInvoiceRouter(
 ): Router {
   const router = Router();
 
-  // Middleware for all invoice routes
   router.use(authMiddleware);
   router.use(tenantScoped);
 
-  router.post('/', invoiceController.create);
-  router.post('/bulk', invoiceController.createBulk);
+  router.post('/', requireRole('admin', 'manager'), invoiceController.create);
+  router.post('/bulk', requireRole('admin', 'manager'), invoiceController.createBulk);
   router.get('/', invoiceController.list);
 
   router.post(
     '/import',
+    requireRole('admin', 'manager'),
     (req: Request, res: Response, next: NextFunction) => {
       csvUpload(req, res, (err: unknown) => {
         if (err instanceof Error) {
@@ -32,9 +33,9 @@ export function createInvoiceRouter(
   );
 
   router.get('/:id', invoiceController.getById);
-  router.patch('/:id', invoiceController.update);
-  router.delete('/:id', invoiceController.delete);
-  router.patch('/:id/status', invoiceController.updateStatus);
+  router.patch('/:id', requireRole('admin', 'manager'), invoiceController.update);
+  router.delete('/:id', requireRole('admin', 'manager'), invoiceController.delete);
+  router.patch('/:id/status', requireRole('admin', 'manager'), invoiceController.updateStatus);
 
   return router;
 }

@@ -363,3 +363,22 @@ export type NewTenantSettings = typeof tenantSettings.$inferInsert;
 
 export type TenantIntegration = typeof tenantIntegrations.$inferSelect;
 export type NewTenantIntegration = typeof tenantIntegrations.$inferInsert;
+export const teamInvitations = pgTable('team_invitations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: userRoleEnum('role').default('viewer').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  invitedByUserId: uuid('invited_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  deliveryStatus: text('delivery_status').default('pending').notNull(),
+  deliveryError: text('delivery_error'),
+  lastSentAt: timestamp('last_sent_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type TeamInvitation = typeof teamInvitations.$inferSelect;
+export type NewTeamInvitation = typeof teamInvitations.$inferInsert;

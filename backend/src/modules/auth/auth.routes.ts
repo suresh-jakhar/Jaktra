@@ -7,7 +7,6 @@ export function createAuthRouter(
 ): Router {
   const router = Router();
 
-  router.post('/register', authController.register);
   router.post('/onboard', authController.onboard);
   router.post('/login', authController.login);
   router.post('/refresh', authController.refresh);

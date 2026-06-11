@@ -13,6 +13,8 @@ const schema = z.object({
     .string()
     .transform((val) => val.split(',').map((s) => s.trim())),
 
+  FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_WEBHOOK_PUBLIC_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),

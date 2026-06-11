@@ -4,12 +4,6 @@ import type { AuthService } from './auth.service.js';
 import { AuthError } from '../../shared/errors/index.js';
 import type { AuthenticatedRequest } from '../../shared/types/auth.js';
 
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  tenantId: z.string().uuid(),
-  role: z.enum(['admin', 'manager', 'viewer']).optional(),
-});
 
 const onboardSchema = z.object({
   name: z.string().min(1),
@@ -26,24 +20,7 @@ const loginSchema = z.object({
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  register = async (req: Request, res: Response): Promise<void> => {
-    const parsed = registerSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
-      return;
-    }
 
-    try {
-      const result = await this.authService.register(parsed.data);
-      res.status(201).json(result);
-    } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
-    }
-  };
   onboard = async (req: Request, res: Response): Promise<void> => {
     const parsed = onboardSchema.safeParse(req.body);
     if (!parsed.success) {

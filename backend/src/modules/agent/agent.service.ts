@@ -88,7 +88,7 @@ export class AgentService {
 
         // Clear any previous DLQ entry on success
         if (!resp.error) {
-          await this.dlqService.clearFailure(inv.id).catch(() => {});
+          await this.dlqService.clearFailure(inv.id, tenantId).catch(() => {});
         } else {
           // It's possible the AI-ML service returned a soft error
           await this.dlqService.recordFailure(inv.id, resp.error).catch(() => {});
@@ -155,7 +155,7 @@ export class AgentService {
       );
 
       if (!resp.error) {
-        await this.dlqService.clearFailure(invoice.id).catch(() => {});
+        await this.dlqService.clearFailure(invoice.id, tenantId).catch(() => {});
       } else {
         await this.dlqService.recordFailure(invoice.id, resp.error).catch(() => {});
       }

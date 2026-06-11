@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { DlqController } from './dlq.controller.js';
+import { requireRole } from '../../middleware/require-role.js';
 
 export function createDlqRouter(
   dlqController: DlqController,
@@ -12,7 +13,7 @@ export function createDlqRouter(
 
   router.get('/', dlqController.getEntries);
   router.get('/stats', dlqController.getStats);
-  router.delete('/:invoice_id', dlqController.deleteEntry);
+  router.delete('/:invoice_id', requireRole('admin', 'manager'), dlqController.deleteEntry);
 
   return router;
 }

@@ -9,6 +9,7 @@ import { Agent } from "./pages/Agent";
 import { DLQ } from "./pages/DLQ";
 import { Analytics } from "./pages/Analytics";
 import { Settings } from "./pages/Settings";
+import { AcceptInvitation } from "./pages/AcceptInvitation";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/invite" element={<AcceptInvitation />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
@@ -27,7 +29,10 @@ function App() {
           <Route path="/agent" element={<Agent />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/dlq" element={<DLQ />} />
-          <Route path="/settings" element={<Settings />} />
+          
+          <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
+            <Route path="/settings" element={<Settings />} />
+          </Route>
         </Route>
       </Route>
     </Routes>

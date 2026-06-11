@@ -28,6 +28,8 @@ import { createSettingsRouter } from './modules/settings/settings.routes.js';
 import { SettingsController } from './modules/settings/settings.controller.js';
 import { createWebhookRouter } from './modules/webhook/webhook.routes.js';
 import { WebhookController } from './modules/webhook/webhook.controller.js';
+import { createTeamRouter } from './modules/team/team.routes.js';
+import { TeamController } from './modules/team/team.controller.js';
 
 import { UserRepository } from './modules/auth/user.repository.js';
 import { TenantRepository } from './modules/tenant/tenant.repository.js';
@@ -38,6 +40,7 @@ import { AgentRepository } from './modules/agent/agent.repository.js';
 import { DlqRepository } from './modules/dlq/dlq.repository.js';
 import { AnalyticsRepository } from './modules/analytics/analytics.repository.js';
 import { SettingsRepository } from './modules/settings/settings.repository.js';
+import { TeamRepository } from './modules/team/team.repository.js';
 
 import { AuthService } from './modules/auth/auth.service.js';
 import { TenantService } from './modules/tenant/tenant.service.js';
@@ -52,6 +55,7 @@ import { DlqService } from './modules/dlq/dlq.service.js';
 import { AnalyticsService } from './modules/analytics/analytics.service.js';
 import { IdempotencyService } from './modules/communication/services/idempotency.service.js';
 import { SettingsService } from './modules/settings/settings.service.js';
+import { TeamService } from './modules/team/team.service.js';
 
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
@@ -125,6 +129,10 @@ export function createApp(config: AppConfig): Application {
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use((req, res, next) => {
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
 
   app.use(requestId);
   app.use(requestLogger);
@@ -146,6 +154,10 @@ export function createApp(config: AppConfig): Application {
     app.use('/api/auth', authLimiter, authRouter);
     
     app.use('/api/tenants', createTenantRouter(new TenantController(tenantService), authMiddleware));
+
+    const teamRepo = new TeamRepository(config.db);
+    const teamService = new TeamService(teamRepo, userRepo);
+    app.use('/api/team', createTeamRouter(new TeamController(teamService, teamRepo), authMiddleware));
 
     const invoiceRepo = new InvoiceRepository(config.db);
     const invoiceImportService = new InvoiceImportService(invoiceRepo);

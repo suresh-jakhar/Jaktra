@@ -1,4 +1,3 @@
-
 export {
   tenants,
   users,
@@ -9,6 +8,7 @@ export {
   dlqEntries,
   tenantSettings,
   tenantIntegrations,
+  teamInvitations,
 } from './schema.js';
 
 export {
@@ -40,6 +40,8 @@ export type {
   NewTenantSettings,
   TenantIntegration,
   NewTenantIntegration,
+  TeamInvitation,
+  NewTeamInvitation,
 } from './schema.js';
 
 export { createDatabaseClient } from './client.js';

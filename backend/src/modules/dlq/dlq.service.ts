@@ -7,15 +7,15 @@ export class DlqService {
     return await this.dlqRepo.recordFailure(invoiceId, errorMsg);
   }
 
-  async clearFailure(invoiceId: string) {
-    return await this.dlqRepo.clearFailure(invoiceId);
+  async clearFailure(invoiceId: string, tenantId: string) {
+    return await this.dlqRepo.clearFailure(invoiceId, tenantId);
   }
 
-  async getDlqEntries() {
-    return await this.dlqRepo.getAllEntries();
+  async getDlqEntries(tenantId: string) {
+    return await this.dlqRepo.getAllEntries(tenantId);
   }
 
-  async getDlqStats() {
-    return await this.dlqRepo.getStats();
+  async getDlqStats(tenantId: string) {
+    return await this.dlqRepo.getStats(tenantId);
   }
 }

@@ -87,7 +87,6 @@ export class CommunicationService {
     }
   }
 
-  // --- Sending Orchestration ---
 
   async send(options: SendCommunicationOptions): Promise<boolean> {
     const { tenantId, to, subject, html, channel = 'email' } = options;
@@ -127,7 +126,6 @@ export class CommunicationService {
         throw new CommunicationError(`Unsupported default email provider: ${defaultProvider}`, 400);
       }
     } catch (error: any) {
-      // Re-throw specific errors as CommunicationError if needed
       if (error instanceof CommunicationError) throw error;
       
       await this.integrationService.handleDeliveryError(tenantId, defaultProvider, error);
@@ -144,7 +142,6 @@ export class CommunicationService {
     });
   }
 
-  // --- Provider Settings ---
 
   async getSettings(tenantId: string) {
     return await this.communicationRepo.getSettings(tenantId);

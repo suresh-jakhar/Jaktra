@@ -1,5 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { CommunicationController } from './communication.controller.js';
+import { requireRole } from '../../middleware/require-role.js';
 
 export function createCommunicationRouter(
   communicationController: CommunicationController,
@@ -19,10 +20,10 @@ export function createCommunicationRouter(
     '/communications',
     authMiddleware,
     tenantScoped,
+    requireRole('admin', 'manager'),
     communicationController.create,
   );
 
-  // --- Provider Settings ---
 
   router.get(
     '/settings/:channel',
@@ -35,6 +36,7 @@ export function createCommunicationRouter(
     '/settings/:channel',
     authMiddleware,
     tenantScoped,
+    requireRole('admin'),
     communicationController.updateSettings,
   );
 
@@ -42,6 +44,7 @@ export function createCommunicationRouter(
     '/settings/:channel/test',
     authMiddleware,
     tenantScoped,
+    requireRole('admin'),
     communicationController.testCommunication,
   );
 
