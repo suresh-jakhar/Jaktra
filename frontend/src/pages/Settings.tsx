@@ -5,9 +5,13 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../co
 import { Loader2, Save, Building, Clock, DollarSign, Settings as SettingsIcon, Mail, Link as LinkIcon, Users, CreditCard } from 'lucide-react';
 import type { TenantSettings } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
+import { TeamSettings } from './Settings/TeamSettings';
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<'general' | 'email' | 'integrations' | 'team' | 'billing'>('general');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'general' | 'email' | 'integrations' | 'team' | 'billing'>(
+    user?.role === 'admin' ? 'general' : 'team'
+  );
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -22,45 +26,51 @@ export function Settings() {
       <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar Nav */}
         <div className="w-full md:w-64 space-y-1">
-          <TabButton 
-            active={activeTab === 'general'} 
-            onClick={() => setActiveTab('general')} 
-            icon={<Building className="w-4 h-4 mr-3" />} 
-            label="General" 
-          />
-          <TabButton 
-            active={activeTab === 'email'} 
-            onClick={() => setActiveTab('email')} 
-            icon={<Mail className="w-4 h-4 mr-3" />} 
-            label="Email Config" 
-          />
-          <TabButton 
-            active={activeTab === 'integrations'} 
-            onClick={() => setActiveTab('integrations')} 
-            icon={<LinkIcon className="w-4 h-4 mr-3" />} 
-            label="Integrations" 
-          />
+          {user?.role === 'admin' && (
+            <>
+              <TabButton 
+                active={activeTab === 'general'} 
+                onClick={() => setActiveTab('general')} 
+                icon={<Building className="w-4 h-4 mr-3" />} 
+                label="General" 
+              />
+              <TabButton 
+                active={activeTab === 'email'} 
+                onClick={() => setActiveTab('email')} 
+                icon={<Mail className="w-4 h-4 mr-3" />} 
+                label="Email Config" 
+              />
+              <TabButton 
+                active={activeTab === 'integrations'} 
+                onClick={() => setActiveTab('integrations')} 
+                icon={<LinkIcon className="w-4 h-4 mr-3" />} 
+                label="Integrations" 
+              />
+            </>
+          )}
           <TabButton 
             active={activeTab === 'team'} 
             onClick={() => setActiveTab('team')} 
             icon={<Users className="w-4 h-4 mr-3" />} 
             label="Team" 
           />
-          <TabButton 
-            active={activeTab === 'billing'} 
-            onClick={() => setActiveTab('billing')} 
-            icon={<CreditCard className="w-4 h-4 mr-3" />} 
-            label="Billing" 
-          />
+          {user?.role === 'admin' && (
+            <TabButton 
+              active={activeTab === 'billing'} 
+              onClick={() => setActiveTab('billing')} 
+              icon={<CreditCard className="w-4 h-4 mr-3" />} 
+              label="Billing" 
+            />
+          )}
         </div>
 
         {/* Content Area */}
         <div className="flex-1">
-          {activeTab === 'general' && <GeneralSettings />}
-          {activeTab === 'email' && <EmailSettings />}
-          {activeTab === 'integrations' && <PlaceholderTab title="Integrations" description="Manage connections to Stripe, Razorpay, and other third-party services." />}
-          {activeTab === 'team' && <PlaceholderTab title="Team Management" description="Invite users and manage role-based access control. (Phase B19)" />}
-          {activeTab === 'billing' && <PlaceholderTab title="Billing" description="Manage your subscription, view invoices, and update payment methods." />}
+          {activeTab === 'general' && user?.role === 'admin' && <GeneralSettings />}
+          {activeTab === 'email' && user?.role === 'admin' && <EmailSettings />}
+          {activeTab === 'integrations' && user?.role === 'admin' && <PlaceholderTab title="Integrations" description="Manage connections to Stripe, Razorpay, and other third-party services." />}
+          {activeTab === 'team' && <TeamSettings />}
+          {activeTab === 'billing' && user?.role === 'admin' && <PlaceholderTab title="Billing" description="Manage your subscription, view invoices, and update payment methods." />}
         </div>
       </div>
     </div>
@@ -109,11 +119,9 @@ function GeneralSettings() {
     },
   });
 
-  // Debounced save
   useEffect(() => {
     if (!settings) return;
     
-    // Check if there are actual changes
     const hasChanges = Object.keys(formData).some(
       key => formData[key as keyof TenantSettings] !== settings[key as keyof TenantSettings]
     );
@@ -272,7 +280,6 @@ function EmailSettings() {
     }
   });
 
-  // Debounced save
   useEffect(() => {
     if (!settings) return;
     

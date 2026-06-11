@@ -20,7 +20,7 @@ export function AppLayout() {
     { label: "Agent", path: "/agent", icon: Bot },
     { label: "Analytics", path: "/analytics", icon: BarChart3 },
     { label: "DLQ", path: "/dlq", icon: AlertTriangle },
-    { label: "Settings", path: "/settings", icon: Settings },
+    ...(user?.role !== 'viewer' ? [{ label: "Settings", path: "/settings", icon: Settings }] : []),
   ];
 
   useEffect(() => {

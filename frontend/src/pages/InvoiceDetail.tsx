@@ -7,6 +7,7 @@ import { agentService } from "../services/agent";
 import { communicationService } from "../services/communication";
 import { Badge } from "../components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
+import { useAuth } from "../contexts/AuthContext";
 import { EditInvoiceModal } from "../components/invoices/EditInvoiceModal";
 import { CommunicationList } from "../components/invoices/CommunicationList";
 import { CommunicationStats } from "../components/invoices/CommunicationStats";
@@ -39,6 +40,7 @@ const formatCurrency = (val: string | number) => {
 
 export function InvoiceDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'timeline' | 'emails'>('timeline');
@@ -175,33 +177,37 @@ export function InvoiceDetail() {
             History
           </button>
           
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4 py-2"
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </button>
-
-          {invoice.paymentStatus !== 'Paid' && (
+          {user?.role !== 'viewer' && (
             <>
               <button
-                onClick={() => statusMutation.mutate('Paid')}
-                disabled={statusMutation.isPending}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 h-10 px-4 py-2 disabled:opacity-50"
+                onClick={() => setIsEditModalOpen(true)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4 py-2"
               >
-                {statusMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                Mark as Paid
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
               </button>
 
-              <button
-                onClick={() => agentMutation.mutate()}
-                disabled={agentMutation.isPending}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2 disabled:opacity-50"
-              >
-                {agentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-                Trigger Follow-up
-              </button>
+              {invoice.paymentStatus !== 'Paid' && (
+                <>
+                  <button
+                    onClick={() => statusMutation.mutate('Paid')}
+                    disabled={statusMutation.isPending}
+                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 h-10 px-4 py-2 disabled:opacity-50"
+                  >
+                    {statusMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                    Mark as Paid
+                  </button>
+
+                  <button
+                    onClick={() => agentMutation.mutate()}
+                    disabled={agentMutation.isPending}
+                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2 disabled:opacity-50"
+                  >
+                    {agentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                    Trigger Follow-up
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>

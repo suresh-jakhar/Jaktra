@@ -5,9 +5,11 @@ import { agentService } from '../services/agent';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { AlertTriangle, MailX, RefreshCw, X, Loader2, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 
 export function DLQ() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
@@ -28,11 +30,9 @@ export function DLQ() {
 
   const retryMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      // Step 1: Run agent
       await agentService.runAgentForInvoice(invoiceId);
     },
     onSettled: () => {
-      // Step 2: Refresh DLQ list to see if it disappeared or incremented
       queryClient.invalidateQueries({ queryKey: ['dlq-entries'] });
       setRetryingId(null);
     },
@@ -48,7 +48,6 @@ export function DLQ() {
   };
 
   const entries = dlqEntries || [];
-  // Sort by failure count descending
   const sortedEntries = [...entries].sort((a, b) => b.consecutiveFailures - a.consecutiveFailures);
   const criticalCount = entries.filter(e => e.consecutiveFailures >= 3).length;
 
@@ -151,24 +150,26 @@ export function DLQ() {
                                 Retrying...
                               </button>
                             ) : (
-                              <>
-                                <button
-                                  onClick={() => handleRetry(entry.invoiceId)}
-                                  disabled={retryingId !== null || dismissingId !== null}
-                                  className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                                >
-                                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                                  Retry Processing
-                                </button>
-                                <button
-                                  onClick={() => setDismissingId(entry.invoiceId)}
-                                  disabled={retryingId !== null || dismissingId !== null}
-                                  className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:opacity-50"
-                                >
-                                  <X className="w-3.5 h-3.5 mr-1" />
-                                  Dismiss
-                                </button>
-                              </>
+                              user?.role !== 'viewer' && (
+                                <>
+                                  <button
+                                    onClick={() => handleRetry(entry.invoiceId)}
+                                    disabled={retryingId !== null || dismissingId !== null}
+                                    className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                                    Retry Processing
+                                  </button>
+                                  <button
+                                    onClick={() => setDismissingId(entry.invoiceId)}
+                                    disabled={retryingId !== null || dismissingId !== null}
+                                    className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-3 py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:opacity-50"
+                                  >
+                                    <X className="w-3.5 h-3.5 mr-1" />
+                                    Dismiss
+                                  </button>
+                                </>
+                              )
                             )}
                           </div>
                         </td>

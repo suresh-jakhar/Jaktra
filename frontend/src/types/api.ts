@@ -20,7 +20,6 @@ export interface ApiError {
   };
 }
 
-// Pagination generic
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: {
@@ -36,14 +35,14 @@ export interface Invoice {
   tenantId: string;
   invoiceNo: string;
   clientName: string;
-  invoiceAmount: string; // Stored as numeric string
+  invoiceAmount: string; 
   dueDate: string;
   paymentStatus: 'Pending' | 'Paid' | 'Overdue';
   contactEmail: string;
   followupCount: number;
   lastFollowupDate: string | null;
   urgencyTier: string | null;
-  daysOverdue?: number; // Calculated on the fly
+  daysOverdue?: number; 
   createdAt: string;
   updatedAt: string;
 }
@@ -199,4 +198,21 @@ export interface SmtpIntegrationStatus extends BaseIntegrationStatus {
 export interface IntegrationsResponse {
   sendgrid: SendgridIntegrationStatus;
   smtp: SmtpIntegrationStatus;
+}
+
+export interface TeamMember {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'manager' | 'viewer';
+  createdAt: string;
+}
+
+export interface TeamInvitation {
+  id: string;
+  email: string;
+  role: 'admin' | 'manager' | 'viewer';
+  deliveryStatus: 'pending' | 'sent' | 'failed';
+  createdAt: string;
+  expiresAt: string;
 }

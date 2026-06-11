@@ -3,9 +3,11 @@ import { agentService } from '../services/agent';
 import { RunList } from '../components/agent/RunList';
 import { ActivityFeed } from '../components/agent/ActivityFeed';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import { useAuth } from '../contexts/AuthContext';
 import { Bot, Play, AlertCircle, Loader2 } from 'lucide-react';
 
 export function Agent() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: runsResponse, isLoading } = useQuery({
@@ -40,24 +42,25 @@ export function Agent() {
           <p className="text-slate-500 mt-1">Manage and monitor automated invoice processing and follow-ups.</p>
         </div>
         <div className="flex items-center space-x-4">
-
-          <button
-            onClick={handleRunAgent}
-            disabled={isRunning}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 disabled:opacity-50 shadow-sm"
-          >
-            {isRunning ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Agent Running...
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 mr-2" />
-                Run Agent Now
-              </>
-            )}
-          </button>
+          {user?.role !== 'viewer' && (
+            <button
+              onClick={handleRunAgent}
+              disabled={isRunning}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 disabled:opacity-50 shadow-sm"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Agent Running...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Run Agent Now
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 

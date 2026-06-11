@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { invoiceService } from "../services/invoice";
 import type { ListInvoicesParams } from "../types/api";
 import { Card } from "../components/ui/Card";
+import { useAuth } from "../contexts/AuthContext";
 import { Badge } from "../components/ui/Badge";
 import { CreateInvoiceModal } from "../components/invoices/CreateInvoiceModal";
 import { ImportInvoiceModal } from "../components/invoices/ImportInvoiceModal";
@@ -30,6 +31,7 @@ const tierConfig: Record<string, { label: string, color: string }> = {
 };
 
 export function Invoices() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useState<ListInvoicesParams>({
     page: 1,
@@ -134,20 +136,24 @@ export function Invoices() {
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </button>
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4 py-2"
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Import CSV
-          </button>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Invoice
-          </button>
+          {user?.role !== 'viewer' && (
+            <>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 px-4 py-2"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </button>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Invoice
+              </button>
+            </>
+          )}
         </div>
       </div>
 
