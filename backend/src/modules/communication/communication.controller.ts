@@ -16,7 +16,6 @@ const SettingsSchema = z.object({
 
 const TestMessageSchema = z.object({
   to: z.string().email(),
-  mode: z.enum(['live', 'dry_run']).optional().default('dry_run'),
 });
 
 export class CommunicationController {
@@ -99,18 +98,17 @@ export class CommunicationController {
         return res.status(400).json({ error: parsed.error.format() });
       }
 
-      const { to, mode } = parsed.data;
+      const { to } = parsed.data;
 
       await this.communicationService.send({
         tenantId,
         to,
         subject: '[Test] CreditOps Communication Configuration',
         html: '<p>This is a test message to verify your configuration is working successfully.</p>',
-        mode,
         channel: 'email'
       });
 
-      res.status(200).json({ success: true, message: `Test message sent successfully in ${mode} mode` });
+      res.status(200).json({ success: true, message: `Test message sent successfully` });
     } catch (err: unknown) {
       res.status(500).json({ error: { message: (err as Error).message || 'Failed to send test message' } });
     }

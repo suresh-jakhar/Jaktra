@@ -13,8 +13,7 @@ export class SendgridProvider {
     from: { name: string; email: string },
     replyTo: { email: string } | undefined,
     subject: string,
-    html: string,
-    mode: 'live' | 'dry_run' = 'dry_run'
+    html: string
   ): Promise<boolean> {
     const msg = {
       to,
@@ -24,14 +23,7 @@ export class SendgridProvider {
       html,
     };
 
-    if (mode === 'dry_run') {
-      logger.info(
-        `[DRY RUN] Email to ${to} from ${from.email} (ReplyTo: ${
-          replyTo?.email || 'N/A'
-        }) - Subject: ${subject}`
-      );
-      return true;
-    }
+
 
     if (!this.sendgridApiKey) {
       logger.warn(`[LIVE] Cannot send email to ${to} - SendGrid API Key is missing. Check .env config.`);

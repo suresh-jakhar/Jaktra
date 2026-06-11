@@ -12,8 +12,8 @@ export const agentService = {
     return response.data;
   },
 
-  runAgent: async (dryRun: boolean = false): Promise<AgentRun> => {
-    const response = await api.post('/agent/run', { dryRun });
+  runAgent: async (): Promise<AgentRun> => {
+    const response = await api.post('/agent/run');
     return response.data;
   },
 

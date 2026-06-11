@@ -267,10 +267,9 @@ def _parse_email_output(raw_text: str) -> tuple[str, str]:
 @tool
 def send_email(invoice_no: str, subject: str, body: str, to_email: str) -> str:
     """
-    Send (or dry-run) a follow-up email for the given invoice.
+    Send a follow-up email for the given invoice.
 
-    In DRY_RUN mode (default), the email is printed to console and logged.
-    In live mode, it is dispatched via SMTP.
+    It is dispatched via SMTP.
 
     Args:
         invoice_no: Invoice identifier — used for logging only.
@@ -371,7 +370,7 @@ def process_invoice(invoice_no: str) -> str:
     Process one invoice end-to-end in a single, sequential tool call:
       1. Fetch invoice details and determine urgency tier.
       2. Generate a personalised follow-up email via the LLM.
-      3. Send the email (dry-run or real SMTP, depending on DRY_RUN setting).
+      3. Send the email.
       4. Update the invoice record (increment followup_count, set last_followup_date).
 
     THIS is the tool to use for every invoice. Do NOT call generate_followup_email,

@@ -30,7 +30,7 @@ def is_recently_sent(
             if (
                 entry.get("invoice_no") == invoice_id
                 and entry.get("action") == "email_sent"
-                and entry.get("result") in ("sent", "dry_run")
+                and entry.get("result") == "sent"
             ):
                 try:
                     entry_time = datetime.fromisoformat(entry["timestamp"])
@@ -74,7 +74,7 @@ def get_last_send_time(
             if (
                 entry.get("invoice_no") == invoice_id
                 and entry.get("action") == "email_sent"
-                and entry.get("result") in ("sent", "dry_run")
+                and entry.get("result") == "sent"
             ):
                 try:
                     entry_time = datetime.fromisoformat(entry["timestamp"])

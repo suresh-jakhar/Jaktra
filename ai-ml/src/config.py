@@ -20,7 +20,6 @@ PAYMENT_LINK: str = os.getenv("PAYMENT_LINK", "https://payments.example.com/port
 BANK_DETAILS: str = os.getenv("BANK_DETAILS", "IBAN: GB00 0000 0000 0000 | SWIFT: EXAMPLEX")
                     
 
-DRY_RUN: bool = os.getenv("DRY_RUN", "true").strip().lower() == "true"
 
 # Automated Scheduling
 _raw_time = os.getenv("SCHEDULE_HOUR", "9:00")

@@ -50,7 +50,6 @@ export const communicationStatusEnum = pgEnum('communication_status', [
   'pending',
   'sent',
   'failed',
-  'dry_run',
 ]);
 
 
@@ -229,7 +228,6 @@ export const tenantSettings = pgTable('tenant_settings', {
   bankDetails: text('bank_details'),
   timezone: text('timezone').notNull().default('UTC'),
   scheduleHour: integer('schedule_hour').notNull().default(9),
-  dryRun: boolean('dry_run').notNull().default(true),
   idempotencyWindowHours: integer('idempotency_window_hours').notNull().default(20),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()

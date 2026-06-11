@@ -3,9 +3,7 @@ import { z } from 'zod';
 import type { AgentService } from './agent.service.js';
 import type { AuthenticatedRequest } from '../../shared/types/auth.js';
 
-const RunBatchSchema = z.object({
-  dryRun: z.boolean().optional(),
-});
+
 
 export class AgentController {
   constructor(private agentService: AgentService) {}
@@ -14,11 +12,7 @@ export class AgentController {
     try {
       const authReq = req as AuthenticatedRequest;
       const tenantId = authReq.user.tenantId;
-      const parsed = RunBatchSchema.safeParse(req.body);
-      
-      const dryRun = parsed.success ? parsed.data.dryRun : false;
-
-      const run = await this.agentService.triggerRun(tenantId, dryRun);
+      const run = await this.agentService.triggerRun(tenantId);
       res.status(200).json(run);
     } catch (err: unknown) {
       res.status(500).json({

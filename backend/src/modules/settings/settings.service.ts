@@ -11,7 +11,6 @@ export const updateSettingsSchema = z.object({
   bankDetails: z.string().optional().nullable(),
   timezone: z.string().optional(),
   scheduleHour: z.number().min(0).max(23).optional(),
-  dryRun: z.boolean().optional(),
   idempotencyWindowHours: z.number().min(0).optional(),
 });
 

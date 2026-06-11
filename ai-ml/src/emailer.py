@@ -14,15 +14,14 @@ class SendResult:
 
     success: bool
     error: str | None
-    status: str          # "sent" | "dry_run" | "error"
+    status: str          # "sent" | "error"
     to: str
     timestamp: str
-    body_preview: str = ""  # populated only for dry_run
 
 
 def send_email(to: str, subject: str, body: str, urgency_tier: str | None = None) -> SendResult:
     """
-    Send a plain-text email, or simulate the send in dry-run mode.
+    Send a plain-text email.
 
     Args:
         to:           Recipient email address.
@@ -48,16 +47,6 @@ def send_email(to: str, subject: str, body: str, urgency_tier: str | None = None
 
     timestamp = datetime.now(tz=timezone.utc).isoformat()
 
-    if config.DRY_RUN:
-        print(f"[DRY RUN] to={to} | subject={subject[:80]}")
-        return SendResult(
-            success=True,
-            error=None,
-            status="dry_run",
-            to=to,
-            timestamp=timestamp,
-            body_preview=body[:200],
-        )
 
     # Build the MIME message
     msg = MIMEText(body, "plain")

@@ -8,7 +8,7 @@ export const createCommunicationSchema = z.object({
   channel: z.enum(['email', 'sms', 'whatsapp']),
   subject: z.string().optional(),
   body: z.string().optional(),
-  status: z.enum(['pending', 'sent', 'failed', 'dry_run']),
+  status: z.enum(['pending', 'sent', 'failed']),
   sentAt: z.coerce.date().optional(),
   error: z.string().optional(),
 });
@@ -24,7 +24,6 @@ export interface SendCommunicationOptions {
   subject: string;
   html: string;
   channel?: 'email' | 'sms' | 'whatsapp';
-  mode?: 'live' | 'dry_run';
 }
 
 export class CommunicationService {
@@ -89,7 +88,7 @@ export class CommunicationService {
   // --- Sending Orchestration ---
 
   async send(options: SendCommunicationOptions): Promise<boolean> {
-    const { tenantId, to, subject, html, channel = 'email', mode = 'dry_run' } = options;
+    const { tenantId, to, subject, html, channel = 'email' } = options;
 
     if (channel !== 'email') {
       throw new Error(`Channel ${channel} is not supported yet`);
@@ -107,7 +106,7 @@ export class CommunicationService {
 
     const replyTo = settings.replyTo ? { email: settings.replyTo } : undefined;
 
-    return this.sendgridProvider.sendEmail(to, from, replyTo, subject, html, mode);
+    return this.sendgridProvider.sendEmail(to, from, replyTo, subject, html);
   }
 
   // --- Provider Settings ---

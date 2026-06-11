@@ -29,7 +29,6 @@ export interface FollowupResponse {
 
 export interface BatchRunRequest {
   invoiceIds: string[];
-  dryRun?: boolean;
 }
 
 export interface BatchRunResponse {

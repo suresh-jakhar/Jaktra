@@ -4,11 +4,9 @@ import { RunList } from '../components/agent/RunList';
 import { ActivityFeed } from '../components/agent/ActivityFeed';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Bot, Play, AlertCircle, Loader2 } from 'lucide-react';
-import { useState } from 'react';
 
 export function Agent() {
   const queryClient = useQueryClient();
-  const [isDryRun, setIsDryRun] = useState(false);
 
   const { data: runsResponse, isLoading } = useQuery({
     queryKey: ['agent-runs'],
@@ -17,7 +15,7 @@ export function Agent() {
   });
 
   const runMutation = useMutation({
-    mutationFn: (dryRun: boolean) => agentService.runAgent(dryRun),
+    mutationFn: () => agentService.runAgent(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-runs'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -26,7 +24,7 @@ export function Agent() {
   });
 
   const handleRunAgent = () => {
-    runMutation.mutate(isDryRun);
+    runMutation.mutate();
   };
 
   const isRunning = runsResponse?.runs[0]?.status === 'running' || runMutation.isPending;
@@ -42,16 +40,7 @@ export function Agent() {
           <p className="text-slate-500 mt-1">Manage and monitor automated invoice processing and follow-ups.</p>
         </div>
         <div className="flex items-center space-x-4">
-          <label className="flex items-center space-x-2 text-sm text-slate-600 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={isDryRun} 
-              onChange={(e) => setIsDryRun(e.target.checked)}
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              disabled={isRunning}
-            />
-            <span>Dry Run (No emails sent)</span>
-          </label>
+
           <button
             onClick={handleRunAgent}
             disabled={isRunning}

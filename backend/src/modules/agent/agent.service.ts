@@ -17,7 +17,7 @@ export class AgentService {
     private idempotencyService: IdempotencyService,
   ) {}
 
-  async triggerRun(tenantId: string, dryRun = false) {
+  async triggerRun(tenantId: string) {
     // 1. Find actionable invoices
     const invoices = await this.invoiceRepo.findByTenant(tenantId);
     const triaged = this.triageService.triageInvoices(invoices);
