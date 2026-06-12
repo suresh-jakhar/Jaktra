@@ -43,6 +43,10 @@ export interface Invoice {
   lastFollowupDate: string | null;
   urgencyTier: string | null;
   daysOverdue?: number; 
+  paymentLink?: {
+    url: string;
+    status: 'active' | 'paid' | 'expired' | 'cancelled';
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -195,9 +199,16 @@ export interface SmtpIntegrationStatus extends BaseIntegrationStatus {
   securityMode?: string;
 }
 
+export interface RazorpayIntegrationStatus extends BaseIntegrationStatus {
+  provider: 'razorpay';
+  maskedKeyId?: string;
+  lastWebhookReceivedAt?: string | null;
+}
+
 export interface IntegrationsResponse {
   sendgrid: SendgridIntegrationStatus;
   smtp: SmtpIntegrationStatus;
+  razorpay: RazorpayIntegrationStatus;
 }
 
 export interface TeamMember {

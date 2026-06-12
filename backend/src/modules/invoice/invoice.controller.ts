@@ -9,11 +9,13 @@ import {
   updateInvoiceStatusSchema,
   listInvoicesSchema,
 } from './invoice.schema.js';
+import type { PaymentService } from '../payment/payment.service.js';
 
 export class InvoiceController {
   constructor(
     private importService: InvoiceImportService,
-    private invoiceRepo: InvoiceRepository
+    private invoiceRepo: InvoiceRepository,
+    private paymentService?: PaymentService
   ) {}
 
   importFromCsv = async (req: Request, res: Response): Promise<void> => {
@@ -102,7 +104,6 @@ export class InvoiceController {
         daysOverdueMax: params.days_overdue_max,
       });
 
-      // Calculate daysOverdue dynamically on read
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -144,7 +145,23 @@ export class InvoiceController {
       const diffTime = today.getTime() - dueDate.getTime();
       const daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-      res.status(200).json({ ...invoice, daysOverdue: daysOverdue > 0 ? daysOverdue : 0 });
+      let paymentLink = null;
+      try {
+        if (this.paymentService) {
+          paymentLink = await this.paymentService.getLatestPaymentLink(id, tenantId);
+        }
+      } catch (e) {
+        logger.error('Failed to get payment link for invoice', { error: e });
+      }
+
+      res.status(200).json({ 
+        ...invoice, 
+        daysOverdue: daysOverdue > 0 ? daysOverdue : 0,
+        paymentLink: paymentLink ? {
+          url: paymentLink.paymentUrl,
+          status: paymentLink.status,
+        } : null
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -156,6 +173,12 @@ export class InvoiceController {
       const id = req.params.id as string;
       const data = updateInvoiceSchema.parse(req.body);
 
+      const invoice = await this.invoiceRepo.findById(id);
+      if (!invoice || invoice.tenantId !== tenantId) {
+        res.status(404).json({ error: 'Invoice not found' });
+        return;
+      }
+
       const updatedData: any = { ...data };
       if (data.invoiceAmount !== undefined) {
         updatedData.invoiceAmount = data.invoiceAmount.toString();
@@ -165,6 +188,14 @@ export class InvoiceController {
       if (!updated) {
         res.status(404).json({ error: 'Invoice not found' });
         return;
+      }
+      
+      if (
+        this.paymentService &&
+        data.invoiceAmount !== undefined &&
+        Number(data.invoiceAmount) !== Number(invoice.invoiceAmount)
+      ) {
+        await this.paymentService.cancelActivePaymentLinks(tenantId, id);
       }
 
       res.status(200).json(updated);
@@ -186,9 +217,37 @@ export class InvoiceController {
       }
 
       await this.invoiceRepo.updatePaymentStatus(id, paymentStatus as any);
+      
+      if (this.paymentService && paymentStatus === 'Paid') {
+        await this.paymentService.cancelActivePaymentLinks(tenantId, id);
+      }
+
       res.status(200).json({ message: 'Status updated successfully' });
     } catch (error: any) {
       res.status(400).json({ error: error.errors ? error.errors[0]?.message : error.message });
+    }
+  };
+
+  generatePaymentLink = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const tenantId = res.locals.tenantId as string;
+      const id = req.params.id as string;
+
+      if (!this.paymentService) {
+        res.status(400).json({ error: 'Payment service not configured' });
+        return;
+      }
+
+      const invoice = await this.invoiceRepo.findById(id);
+      if (!invoice || invoice.tenantId !== tenantId) {
+        res.status(404).json({ error: 'Invoice not found' });
+        return;
+      }
+
+      const paymentLink = await this.paymentService.getOrGeneratePaymentLink(tenantId, id, 'razorpay');
+      res.status(200).json({ url: paymentLink });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   };
 

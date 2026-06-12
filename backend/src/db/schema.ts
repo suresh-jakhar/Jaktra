@@ -13,7 +13,7 @@ import {
   boolean,
   unique,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 
 export const userRoleEnum = pgEnum('user_role', [
@@ -22,7 +22,8 @@ export const userRoleEnum = pgEnum('user_role', [
   'viewer',
 ]);
 
-export const providerEnum = pgEnum('integration_provider', ['sendgrid', 'smtp']);
+export const providerEnum = pgEnum('integration_provider', ['sendgrid', 'smtp', 'razorpay']);
+export const paymentLinkStatusEnum = pgEnum('payment_link_status', ['active', 'paid', 'expired', 'cancelled']);
 export const defaultEmailProviderEnum = pgEnum('default_email_provider', ['sendgrid', 'smtp']);
 export const validationResultEnum = pgEnum('validation_result', [
   'valid', 'invalid', 'revoked', 'insufficient_scope', 'unverified_sender', 'unknown'
@@ -100,6 +101,7 @@ export const invoices = pgTable(
     invoiceNo: text('invoice_no').notNull(),
     clientName: text('client_name').notNull(),
     invoiceAmount: numeric('invoice_amount', { precision: 14, scale: 2 }).notNull(),
+    currency: text('currency').notNull().default('INR'),
     dueDate: date('due_date').notNull(),
     contactEmail: text('contact_email').notNull(),
     paymentStatus: paymentStatusEnum('payment_status').notNull().default('Pending'),
@@ -263,6 +265,48 @@ export const tenantIntegrations = pgTable('tenant_integrations', {
     tenantProviderUniq: unique('tenant_integrations_tenant_provider_uniq').on(table.tenantId, table.provider)
   };
 });
+
+export const paymentWebhookEvents = pgTable('payment_webhook_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  provider: providerEnum('provider').notNull(),
+  externalEventId: text('external_event_id').notNull(),
+  paymentId: text('payment_id'),
+  invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+  status: text('status').notNull(),
+  rawPayload: jsonb('raw_payload'),
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('payment_webhook_events_tenant_provider_external_event_uniq').on(table.tenantId, table.provider, table.externalEventId),
+  index('payment_webhook_events_tenant_id_idx').on(table.tenantId),
+  index('payment_webhook_events_invoice_id_idx').on(table.invoiceId),
+  index('payment_webhook_events_payment_id_idx').on(table.paymentId),
+]);
+
+export const invoicePaymentLinks = pgTable('invoice_payment_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  invoiceId: uuid('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  provider: providerEnum('provider').notNull(),
+  providerPaymentLinkId: text('provider_payment_link_id').notNull(),
+  providerOrderId: text('provider_order_id'),
+  paymentUrl: text('payment_url').notNull(),
+  status: paymentLinkStatusEnum('status').notNull().default('active'),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  currency: text('currency').notNull(),
+  metadata: jsonb('metadata'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('invoice_payment_links_tenant_invoice_provider_active_uniq')
+    .on(table.tenantId, table.invoiceId, table.provider)
+    .where(sql`${table.status} = 'active'`),
+  index('invoice_payment_links_tenant_id_idx').on(table.tenantId),
+  index('invoice_payment_links_invoice_id_idx').on(table.invoiceId),
+  index('invoice_payment_links_provider_link_id_idx').on(table.providerPaymentLinkId),
+]);
 
 export const tenantsRelations = relations(tenants, ({ many, one }) => ({
   users: many(users),

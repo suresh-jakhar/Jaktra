@@ -18,7 +18,14 @@ export class RazorpayAdapter implements IPaymentGateway {
         .update(rawBody)
         .digest('hex');
 
-      return signature === expectedSignature;
+      const expectedBuffer = Buffer.from(expectedSignature);
+      const signatureBuffer = Buffer.from(signature);
+
+      if (expectedBuffer.length !== signatureBuffer.length) {
+        return false;
+      }
+
+      return crypto.timingSafeEqual(expectedBuffer, signatureBuffer);
     } catch (error) {
       logger.error('Error verifying Razorpay signature', { error });
       return false;
@@ -29,15 +36,19 @@ export class RazorpayAdapter implements IPaymentGateway {
     try {
       const parsedBody = JSON.parse(rawBody.toString('utf8'));
 
-      if (parsedBody.event === 'payment.captured') {
+      if (parsedBody.event === 'payment.captured' || parsedBody.event === 'payment.failed') {
         const entity = parsedBody.payload?.payment?.entity;
+        const paymentLinkEntity = parsedBody.payload?.payment_link?.entity;
         if (!entity) return null;
+
+        const invoiceId = entity.notes?.invoice_id || paymentLinkEntity?.notes?.invoice_id;
 
         return {
           provider: 'razorpay',
-          invoiceId: entity.notes?.invoice_id,
+          invoiceId: invoiceId,
           amount: entity.amount, // in paise
-          status: 'captured',
+          currency: entity.currency,
+          status: parsedBody.event === 'payment.captured' ? 'captured' : 'failed',
           externalRefId: entity.id,
           rawEvent: parsedBody
         };
@@ -48,5 +59,51 @@ export class RazorpayAdapter implements IPaymentGateway {
       logger.error('Error parsing Razorpay webhook payload', { error });
       return null;
     }
+  }
+
+  async createPaymentLink(
+    credentials: Record<string, string>,
+    invoiceId: string,
+    amount: number,
+    currency: string,
+    description: string
+  ): Promise<{ paymentUrl: string; providerPaymentLinkId: string; providerOrderId?: string }> {
+    const { keyId, keySecret } = credentials;
+    if (!keyId || !keySecret) {
+      throw new Error('Razorpay credentials missing keyId or keySecret');
+    }
+
+    const amountInPaise = Math.round(amount * 100);
+    const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+
+    const response = await fetch('https://api.razorpay.com/v1/payment_links', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency,
+        accept_partial: false,
+        description,
+        notes: {
+          invoice_id: invoiceId,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      logger.error('Razorpay createPaymentLink failed', { status: response.status, body: errorBody });
+      throw new Error(`Razorpay API error: ${response.status} ${errorBody}`);
+    }
+
+    const data = await response.json() as any;
+    return {
+      paymentUrl: data.short_url,
+      providerPaymentLinkId: data.id,
+      providerOrderId: data.order_id,
+    };
   }
 }

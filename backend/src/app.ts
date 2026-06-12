@@ -56,6 +56,8 @@ import { AnalyticsService } from './modules/analytics/analytics.service.js';
 import { IdempotencyService } from './modules/communication/services/idempotency.service.js';
 import { SettingsService } from './modules/settings/settings.service.js';
 import { TeamService } from './modules/team/team.service.js';
+import { PaymentRepository } from './modules/payment/payment.repository.js';
+import { PaymentService } from './modules/payment/payment.service.js';
 
 import { createAuthMiddleware } from './middleware/auth.js';
 import { tenantScoped } from './middleware/tenant-scoped.js';
@@ -97,6 +99,9 @@ export function createApp(config: AppConfig): Application {
   }
 
   const app = express();
+  
+  // Trust the first proxy (ngrok) for express-rate-limit
+  app.set('trust proxy', 1);
 
   app.use(
     cors({
@@ -116,15 +121,15 @@ export function createApp(config: AppConfig): Application {
     const gatewayFactory = new PaymentGatewayFactory();
     gatewayFactory.register(new RazorpayAdapter());
     
+    const paymentRepo = new PaymentRepository(config.db);
+    const settingsRepo = new SettingsRepository(config.db);
+    const paymentService = new PaymentService(paymentRepo, invoiceRepo, integrationService, gatewayFactory, settingsRepo, eventRepo);
+    app.locals.paymentService = paymentService;
+
     const webhookService = new WebhookService(invoiceRepo, eventRepo);
     const sendgridService = new SendgridWebhookService(communicationService, config.sendgridWebhookPublicKey);
     
-    const webhookSecrets: Record<string, string> = {};
-    if (config.razorpayWebhookSecret) {
-      webhookSecrets['razorpay'] = config.razorpayWebhookSecret;
-    }
-    
-    app.use('/api/webhooks', createWebhookRouter(new WebhookController(gatewayFactory, webhookService, webhookSecrets, sendgridService)));
+    app.use('/api/webhooks', createWebhookRouter(new WebhookController(gatewayFactory, webhookService, paymentService, sendgridService)));
   }
 
   app.use(express.json());
@@ -137,7 +142,6 @@ export function createApp(config: AppConfig): Application {
   app.use(requestId);
   app.use(requestLogger);
   
-  // Apply standard rate limit to all routes
   app.use(standardLimiter);
 
   const healthController = new HealthController();
@@ -162,7 +166,7 @@ export function createApp(config: AppConfig): Application {
     const invoiceRepo = new InvoiceRepository(config.db);
     const invoiceImportService = new InvoiceImportService(invoiceRepo);
     const triageService = new TriageService();
-    app.use('/api/invoices', createInvoiceRouter(new InvoiceController(invoiceImportService, invoiceRepo), authMiddleware, tenantScoped));
+    app.use('/api/invoices', createInvoiceRouter(new InvoiceController(invoiceImportService, invoiceRepo, app.locals.paymentService), authMiddleware, tenantScoped));
     app.use('/api/invoices', createTriageRouter(new TriageController(triageService, invoiceRepo), authMiddleware, tenantScoped));
 
     const analyticsRepo = new AnalyticsRepository(config.db);
@@ -206,7 +210,8 @@ export function createApp(config: AppConfig): Application {
       const idempotencyService = new IdempotencyService(communicationRepo);
 
       const agentRepo = new AgentRepository(config.db);
-      const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService, idempotencyService);
+      
+      const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService, idempotencyService, app.locals.paymentService);
       app.use('/api/agent', createAgentRouter(new AgentController(agentService), authMiddleware, tenantScoped));
     }
   }

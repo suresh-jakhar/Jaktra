@@ -29,6 +29,20 @@
       "when": 1781180000000,
       "tag": "0003_team_invitations",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781237831097,
+      "tag": "0004_add_razorpay_and_payment_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781237874387,
+      "tag": "0005_manual_payment_tables",
+      "breakpoints": true
     }
   ]
 }

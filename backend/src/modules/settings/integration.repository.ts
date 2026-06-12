@@ -5,7 +5,7 @@ import { tenantIntegrations, type TenantIntegration, type NewTenantIntegration }
 export class IntegrationRepository {
   constructor(private readonly db: DatabaseClient) {}
 
-  async getIntegration(tenantId: string, provider: 'sendgrid' | 'smtp'): Promise<TenantIntegration | undefined> {
+  async getIntegration(tenantId: string, provider: 'sendgrid' | 'smtp' | 'razorpay'): Promise<TenantIntegration | undefined> {
     const result = await this.db
       .select()
       .from(tenantIntegrations)
@@ -52,7 +52,7 @@ export class IntegrationRepository {
 
   async optimisticUpdateIntegration(
     tenantId: string,
-    provider: 'sendgrid' | 'smtp',
+    provider: 'sendgrid' | 'smtp' | 'razorpay',
     data: Partial<NewTenantIntegration>,
     expectedUpdatedAt: Date
   ): Promise<TenantIntegration | null> {
@@ -71,7 +71,7 @@ export class IntegrationRepository {
     return result || null;
   }
 
-  async deleteIntegration(tenantId: string, provider: 'sendgrid' | 'smtp'): Promise<void> {
+  async deleteIntegration(tenantId: string, provider: 'sendgrid' | 'smtp' | 'razorpay'): Promise<void> {
     await this.db
       .delete(tenantIntegrations)
       .where(
@@ -84,7 +84,7 @@ export class IntegrationRepository {
 
   async updateValidationStatus(
     tenantId: string,
-    provider: 'sendgrid' | 'smtp',
+    provider: 'sendgrid' | 'smtp' | 'razorpay',
     status: TenantIntegration['lastValidationResult'],
     errorCode?: string | null
   ): Promise<void> {
@@ -106,7 +106,7 @@ export class IntegrationRepository {
 
   async updateOperationalErrorCode(
     tenantId: string,
-    provider: 'sendgrid' | 'smtp',
+    provider: 'sendgrid' | 'smtp' | 'razorpay',
     errorCode: string | null
   ): Promise<void> {
     await this.db

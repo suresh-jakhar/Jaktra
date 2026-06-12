@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { IntegrationService } from './integration.service.js';
 import { CommunicationService } from '../communication/communication.service.js';
+import { z } from 'zod';
+
+const razorpayCredsSchema = z.object({
+  keyId: z.string().min(5).max(50).regex(/^rzp_/, 'Key ID must start with rzp_'),
+  keySecret: z.string().min(5).max(100),
+  webhookSecret: z.string().min(5).max(100),
+});
 
 export class IntegrationController {
   constructor(
@@ -11,14 +18,16 @@ export class IntegrationController {
   getStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const tenantId = (req as any).user.tenantId;
-      const [sendgridStatus, smtpStatus] = await Promise.all([
+      const [sendgridStatus, smtpStatus, razorpayStatus] = await Promise.all([
         this.integrationService.getIntegrationStatus(tenantId, 'sendgrid'),
-        this.integrationService.getIntegrationStatus(tenantId, 'smtp')
+        this.integrationService.getIntegrationStatus(tenantId, 'smtp'),
+        this.integrationService.getIntegrationStatusRazorpay(tenantId)
       ]);
       res.set('Cache-Control', 'no-store');
       res.json({
         sendgrid: sendgridStatus,
-        smtp: smtpStatus
+        smtp: smtpStatus,
+        razorpay: razorpayStatus
       });
     } catch (error) {
       next(error);
@@ -138,6 +147,35 @@ export class IntegrationController {
          await this.communicationService.setDefaultEmailProvider(tenantId, null);
       }
 
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  saveRazorpayKey = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = (req as any).user.tenantId;
+      
+      const validationResult = razorpayCredsSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ error: 'Invalid Razorpay credentials format', details: validationResult.error.issues });
+      }
+
+      const { keyId, keySecret, webhookSecret } = validationResult.data;
+
+      await this.integrationService.validateAndSaveRazorpayKey(tenantId, { keyId, keySecret, webhookSecret });
+      
+      res.json({ message: 'Razorpay integration saved successfully' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  disconnectRazorpay = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = (req as any).user.tenantId;
+      await this.integrationService.deleteRazorpayIntegration(tenantId);
       res.status(204).send();
     } catch (error) {
       next(error);

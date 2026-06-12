@@ -6,6 +6,7 @@ import { Loader2, Save, Building, Clock, DollarSign, Settings as SettingsIcon, M
 import type { TenantSettings } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 import { TeamSettings } from './Settings/TeamSettings';
+import { IntegrationsTab } from './Settings/IntegrationsTab';
 
 export function Settings() {
   const { user } = useAuth();
@@ -68,7 +69,7 @@ export function Settings() {
         <div className="flex-1">
           {activeTab === 'general' && user?.role === 'admin' && <GeneralSettings />}
           {activeTab === 'email' && user?.role === 'admin' && <EmailSettings />}
-          {activeTab === 'integrations' && user?.role === 'admin' && <PlaceholderTab title="Integrations" description="Manage connections to Stripe, Razorpay, and other third-party services." />}
+          {activeTab === 'integrations' && user?.role === 'admin' && <IntegrationsTab />}
           {activeTab === 'team' && <TeamSettings />}
           {activeTab === 'billing' && user?.role === 'admin' && <PlaceholderTab title="Billing" description="Manage your subscription, view invoices, and update payment methods." />}
         </div>

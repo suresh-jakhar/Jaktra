@@ -84,6 +84,13 @@ export function InvoiceDetail() {
     }
   });
 
+  const generateLinkMutation = useMutation({
+    mutationFn: () => invoiceService.generatePaymentLink(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+    }
+  });
+
   if (isInvoiceLoading || !invoice) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
@@ -256,6 +263,65 @@ export function InvoiceDetail() {
               <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                 <p className="text-sm text-slate-500">Follow-ups Sent</p>
                 <p className="font-semibold text-slate-900">{invoice.followupCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Payment Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm text-slate-500 mb-2">Payment Link</p>
+                {invoice.paymentLink ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                        invoice.paymentLink.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                        invoice.paymentLink.status === 'paid' ? 'bg-emerald-100 text-emerald-800' :
+                        invoice.paymentLink.status === 'cancelled' ? 'bg-slate-100 text-slate-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {invoice.paymentLink.status.charAt(0).toUpperCase() + invoice.paymentLink.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={invoice.paymentLink.url} 
+                        className="w-full text-xs p-1.5 border border-slate-200 rounded bg-slate-50 text-slate-600 truncate"
+                        title={invoice.paymentLink.url}
+                      />
+                      {invoice.paymentLink.status === 'active' && invoice.paymentStatus !== 'Paid' && (
+                        <button 
+                          onClick={() => navigator.clipboard.writeText(invoice.paymentLink!.url)}
+                          className="px-2 py-1.5 bg-white border border-slate-300 rounded text-xs font-medium hover:bg-slate-50 transition-colors flex-shrink-0"
+                        >
+                          Copy
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="text-sm text-slate-600 italic">
+                      No active payment link generated yet.
+                      {invoice.paymentStatus !== 'Paid' && <p className="text-xs text-slate-400 mt-1">A fallback link from settings may be used in emails.</p>}
+                    </div>
+                    {invoice.paymentStatus !== 'Paid' && user?.role !== 'viewer' && (
+                      <button
+                        onClick={() => generateLinkMutation.mutate()}
+                        disabled={generateLinkMutation.isPending}
+                        className="inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 h-8 px-3 disabled:opacity-50"
+                      >
+                        {generateLinkMutation.isPending && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                        Generate Payment Link
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

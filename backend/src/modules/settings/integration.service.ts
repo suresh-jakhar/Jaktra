@@ -48,6 +48,33 @@ export class IntegrationService {
     };
   }
 
+  async getIntegrationStatusRazorpay(tenantId: string) {
+    const integration = await this.repo.getIntegration(tenantId, 'razorpay');
+    if (!integration) {
+      return {
+        provider: 'razorpay',
+        isConfigured: false,
+        lastValidatedAt: null,
+        lastValidationResult: 'unknown',
+      };
+    }
+
+    let maskedKeyId = '';
+    try {
+      const config = await this.getDecryptedRazorpayConfig(tenantId);
+      maskedKeyId = config.keyId.substring(0, 8) + '...';
+    } catch (e) {
+    }
+
+    return {
+      provider: 'razorpay',
+      isConfigured: true,
+      lastValidatedAt: integration.lastValidatedAt,
+      lastValidationResult: integration.lastValidationResult,
+      maskedKeyId,
+    };
+  }
+
   async validateAndSaveSendgridKey(tenantId: string, apiKey: string): Promise<void> {
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
       throw IntegrationErrors.CREDENTIAL_INVALID;
@@ -243,6 +270,77 @@ export class IntegrationService {
       } else {
          await this.repo.updateOperationalErrorCode(tenantId, provider, String(status));
       }
+    }
+  }
+
+
+  async validateAndSaveRazorpayKey(tenantId: string, payload: { keyId: string, keySecret: string, webhookSecret: string }): Promise<void> {
+    if (!payload.keyId || !payload.keySecret || !payload.webhookSecret) {
+      throw IntegrationErrors.CREDENTIAL_INVALID;
+    }
+
+    let validationResult: TenantIntegration['lastValidationResult'] = 'unknown';
+    let errorCode: string | undefined;
+
+    try {
+      const auth = Buffer.from(`${payload.keyId}:${payload.keySecret}`).toString('base64');
+      const response = await fetch('https://api.razorpay.com/v1/payments', {
+        headers: { Authorization: `Basic ${auth}` },
+        signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(5000) : undefined
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized');
+        }
+        throw new Error(`Razorpay API Error: ${response.status}`);
+      }
+      validationResult = 'valid';
+    } catch (error: any) {
+      console.error('validateAndSaveRazorpayKey error:', error);
+      logger.warn(`Razorpay validation failed for tenant ${tenantId}. Error: ${error.message}`);
+      throw new Error('Invalid Razorpay credentials. Validation request failed.');
+    }
+
+    const version = 1;
+    const encrypted = encrypt(JSON.stringify(payload), this.getAadContext(tenantId, 'razorpay', version));
+
+    await this.repo.upsertIntegration({
+      tenantId,
+      provider: 'razorpay',
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      keyVersion: version,
+      lastValidatedAt: new Date(),
+      lastValidationResult: validationResult,
+      lastOperationalErrorCode: errorCode,
+    });
+  }
+
+  async deleteRazorpayIntegration(tenantId: string): Promise<void> {
+    await this.repo.deleteIntegration(tenantId, 'razorpay');
+  }
+
+  async getDecryptedRazorpayConfig(tenantId: string): Promise<{ keyId: string, keySecret: string, webhookSecret: string }> {
+    const integration = await this.repo.getIntegration(tenantId, 'razorpay');
+    if (!integration) {
+      throw IntegrationErrors.NOT_CONFIGURED;
+    }
+
+    try {
+      const aadContext = this.getAadContext(tenantId, 'razorpay', integration.keyVersion);
+      const decryptedString = decrypt({
+        ciphertext: integration.ciphertext,
+        iv: integration.iv,
+        authTag: integration.authTag,
+        keyVersion: integration.keyVersion,
+      }, aadContext);
+      
+      return JSON.parse(decryptedString);
+    } catch (e) {
+      logger.error(`Decryption failed for tenant ${tenantId} Razorpay integration.`);
+      throw IntegrationErrors.CREDENTIAL_INVALID;
     }
   }
 }

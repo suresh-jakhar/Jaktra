@@ -35,3 +35,4 @@ TIMEZONE: str = os.getenv("TIMEZONE", "Asia/Kolkata")
 
 DATA_PATH: str = str(BASE_DIR / "Dataset" / "Data_Ingestion.csv")
 OUTPUT_DIR: str = str(BASE_DIR / "outputs")
+DRY_RUN: bool = True
