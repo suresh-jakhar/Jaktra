@@ -5,7 +5,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from api.config import settings as config
 from src.security import sanitize_input
 from api.services.output_parser import _parse_email_output
-from prompts.email_prompt import get_prompt_for_tier
 from api.logging import logger
 import time
 
@@ -33,6 +32,8 @@ def _invoke_llm_with_retry(llm, messages):
     """Call the LLM with up to 3 retries on transient Groq errors."""
     return llm.invoke(messages)
 
+from src.prompt_registry import registry, TierNotAutomatableError
+
 def generate_followup_content(invoice_data: dict) -> dict:
     """
     Core logic extracted from the legacy generate_followup_email tool.
@@ -41,8 +42,14 @@ def generate_followup_content(invoice_data: dict) -> dict:
     """
     invoice_no = invoice_data.get("invoice_no", "UNKNOWN")
     urgency_tier = invoice_data.get("urgency_tier", "first_followup")
+    channel = invoice_data.get("channel", "email")
     
-    prompt = get_prompt_for_tier(urgency_tier)
+    try:
+        prompt = registry.get_prompt(channel, urgency_tier)
+    except TierNotAutomatableError:
+        raise ValueError(f"{urgency_tier} does not have an automated email prompt.")
+    except Exception as e:
+        raise ValueError(str(e))
 
     sender_name = getattr(config, "SMTP_SENDER_NAME", "Finance Department")
     payment_link = invoice_data.get("payment_link") or getattr(config, "PAYMENT_LINK", "")
