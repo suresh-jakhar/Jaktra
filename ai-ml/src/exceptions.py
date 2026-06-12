@@ -13,3 +13,15 @@ class HaltViolationError(RuntimeError):
     somehow bypasses them, this exception stops the email from going out.
     """
     pass
+
+class TierNotAutomatableError(Exception):
+    pass
+
+class OutputValidationError(Exception):
+    pass
+
+class LLMGenerationError(Exception):
+    pass
+
+class PromptInjectionDetectedError(Exception):
+    pass

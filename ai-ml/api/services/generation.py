@@ -3,8 +3,7 @@ import groq
 from langchain_groq import ChatGroq
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from api.config import settings as config
-from src.security import sanitize_input
-from api.services.output_parser import _parse_email_output
+from src.security import sanitize_input, validate_email_output
 from api.logging import logger
 import time
 
@@ -89,7 +88,7 @@ def generate_followup_content(invoice_data: dict) -> dict:
     if hasattr(response, "response_metadata") and "token_usage" in response.response_metadata:
         token_count = response.response_metadata["token_usage"].get("total_tokens", 0)
 
-    subject, body = _parse_email_output(raw_text)
+    subject, body = validate_email_output(raw_text)
 
     logger.info(
         "generation_complete",

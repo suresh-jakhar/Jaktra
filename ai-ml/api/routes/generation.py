@@ -64,6 +64,8 @@ class BatchFollowupResponse(BaseModel):
 import asyncio
 import time
 
+from src.exceptions import OutputValidationError, PromptInjectionDetectedError
+
 @router.post("", response_model=FollowupResponse)
 async def generate_followup(request: FollowupRequest):
     try:
@@ -74,13 +76,14 @@ async def generate_followup(request: FollowupRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except KeyError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except OutputValidationError as e:
+        raise HTTPException(status_code=422, detail="GENERATION_VALIDATION_FAILED")
+    except PromptInjectionDetectedError as e:
+        raise HTTPException(status_code=422, detail="GENERATION_VALIDATION_FAILED")
     
     if result.get("status") == "error":
         raise HTTPException(status_code=502, detail={"error": result.get("reason", "LLM Generation failed"), "retryable": True})
         
-    if "Validation Error" in result["subject"] or "Security Error" in result["subject"]:
-        raise HTTPException(status_code=422, detail="GENERATION_VALIDATION_FAILED")
-    
     plain_body = result["body"]
     html_body = f"<p>{plain_body.replace(chr(10), '<br>')}</p>"
 
@@ -129,6 +132,20 @@ async def _process_invoice_for_batch(invoice: FollowupRequest, sem: asyncio.Sema
                 "error": str(e),
                 "retryable": False
             }
+        except OutputValidationError:
+            return {
+                "invoice_id": invoice.invoice_id,
+                "status": "error",
+                "error": "GENERATION_VALIDATION_FAILED",
+                "retryable": False
+            }
+        except PromptInjectionDetectedError:
+            return {
+                "invoice_id": invoice.invoice_id,
+                "status": "error",
+                "error": "GENERATION_VALIDATION_FAILED",
+                "retryable": False
+            }
         except Exception as e:
             return {
                 "invoice_id": invoice.invoice_id,
@@ -143,14 +160,6 @@ async def _process_invoice_for_batch(invoice: FollowupRequest, sem: asyncio.Sema
                 "status": "error",
                 "error": result.get("reason", "LLM_GENERATION_FAILED"),
                 "retryable": True
-            }
-
-        if "Validation Error" in result["subject"] or "Security Error" in result["subject"]:
-            return {
-                "invoice_id": invoice.invoice_id,
-                "status": "error",
-                "error": "GENERATION_VALIDATION_FAILED",
-                "retryable": False
             }
 
         plain_body = result["body"]
