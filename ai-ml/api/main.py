@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, Depends
 from api.routes import health, generation, risk, agents
+from api.middleware.auth import verify_service_key
 
 app = FastAPI(
     title="CreditOps AI-ML Service",
@@ -8,6 +12,6 @@ app = FastAPI(
 )
 
 app.include_router(health.router)
-app.include_router(generation.router)
-app.include_router(risk.router)
-app.include_router(agents.router)
+app.include_router(generation.router, dependencies=[Depends(verify_service_key)])
+app.include_router(risk.router, dependencies=[Depends(verify_service_key)])
+app.include_router(agents.router, dependencies=[Depends(verify_service_key)])

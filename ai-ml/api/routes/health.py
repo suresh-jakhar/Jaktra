@@ -1,5 +1,6 @@
 import time
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from api.middleware.auth import verify_service_key
 
 router = APIRouter(tags=["Health"])
 
@@ -23,7 +24,7 @@ async def get_health():
         "uptime_seconds": int(time.time() - START_TIME)
     }
 
-@router.get("/status")
+@router.get("/status", dependencies=[Depends(verify_service_key)])
 async def get_status():
     avg_gen_ms = 0
     if stats["requests_served"] > 0:
