@@ -5,6 +5,8 @@ import { TriageService } from './triage.service.js';
 import { EventService } from '../event/event.service.js';
 import { DlqService } from '../dlq/dlq.service.js';
 import { IdempotencyService } from '../../modules/communication/services/idempotency.service.js';
+import { PaymentService } from '../payment/payment.service.js';
+import { logger } from '../../shared/logger.js';
 
 export class AgentService {
   constructor(
@@ -15,15 +17,13 @@ export class AgentService {
     private eventService: EventService,
     private dlqService: DlqService,
     private idempotencyService: IdempotencyService,
+    private paymentService: PaymentService
   ) {}
 
   async triggerRun(tenantId: string) {
-    // 1. Find actionable invoices
     const invoices = await this.invoiceRepo.findByTenant(tenantId);
     const triaged = this.triageService.triageInvoices(invoices);
     const invoiceIds = triaged.invoices.map((inv) => inv.id);
-
-    // 2. Create the run record
     const run = await this.agentRepo.createRun({
       tenantId,
       status: 'running',
@@ -38,12 +38,6 @@ export class AgentService {
         errors: 0,
       });
     }
-
-    // 3. Delegate to AI-ML batch run if we want, or process here.
-    // The A14 spec implies the backend can track the run metadata.
-    // If the python service doesn't update our DB yet (Phase C is later),
-    // we orchestrate it here using the single invoice endpoint to ensure
-    // we get synchronous results and can update the DB.
     let processed = 0;
     let emailsSent = 0;
     let errorsCount = 0;
@@ -52,7 +46,6 @@ export class AgentService {
       try {
         const idempotencyCheck = await this.idempotencyService.checkInvoice(tenantId, inv.id);
         if (idempotencyCheck.skipped) {
-          // Log skip and move on
           await this.eventService.emitEvent(
             inv.id,
             'halted',
@@ -60,6 +53,13 @@ export class AgentService {
             'system'
           );
           continue;
+        }
+
+        let paymentLink = undefined;
+        try {
+          paymentLink = await this.paymentService.getOrGeneratePaymentLink(tenantId, inv.id, 'razorpay');
+        } catch (e: any) {
+          logger.warn(`Could not generate payment link for invoice ${inv.id} - ${e.message}`);
         }
 
         const resp = await this.aimlService.triggerFollowup({
@@ -72,13 +72,13 @@ export class AgentService {
           daysOverdue: inv.daysOverdue,
           urgencyTier: inv.computedTier,
           followupCount: inv.followupCount,
+          paymentLink,
         });
 
         processed++;
         if (resp.emailSent) emailsSent++;
         if (resp.error) errorsCount++;
 
-        // Log event
         await this.eventService.emitEvent(
           inv.id,
           resp.emailSent ? 'email_sent' : 'email_generated',
@@ -86,11 +86,9 @@ export class AgentService {
           'ai-agent'
         );
 
-        // Clear any previous DLQ entry on success
         if (!resp.error) {
           await this.dlqService.clearFailure(inv.id, tenantId).catch(() => {});
         } else {
-          // It's possible the AI-ML service returned a soft error
           await this.dlqService.recordFailure(inv.id, resp.error).catch(() => {});
         }
       } catch (err: unknown) {
@@ -135,6 +133,13 @@ export class AgentService {
     }
 
     try {
+      let paymentLink = undefined;
+      try {
+        paymentLink = await this.paymentService.getOrGeneratePaymentLink(tenantId, invoice.id, 'razorpay');
+      } catch (e: any) {
+        logger.warn(`Could not generate payment link for invoice ${invoice.id} - ${e.message}`);
+      }
+
       const resp = await this.aimlService.triggerFollowup({
         invoiceId: invoice.id,
         invoiceNo: invoice.invoiceNo,
@@ -145,6 +150,7 @@ export class AgentService {
         daysOverdue,
         urgencyTier,
         followupCount: invoice.followupCount,
+        paymentLink,
       });
 
       await this.eventService.emitEvent(
@@ -181,7 +187,6 @@ export class AgentService {
     const run = await this.agentRepo.getRunById(runId, tenantId);
     if (!run) return null;
 
-    // Fetch events tied to this run
     const events = await this.eventService.findByRunId(runId);
     
     return {

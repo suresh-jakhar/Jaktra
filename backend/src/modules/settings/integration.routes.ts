@@ -7,7 +7,6 @@ import { requireRole } from '../../middleware/require-role.js';
 export function createIntegrationRouter(controller: IntegrationController): Router {
   const router = Router();
 
-  // Authentication is assumed to be handled before this router is mounted
   router.use(tenantScoped);
 
   router.get('/', controller.getStatus);
@@ -21,6 +20,9 @@ export function createIntegrationRouter(controller: IntegrationController): Rout
   router.delete('/smtp', requireRole('admin'), controller.disconnectSmtp);
 
   router.patch('/default-provider', requireRole('admin'), controller.setDefaultProvider);
+
+  router.post('/razorpay', requireRole('admin'), controller.saveRazorpayKey);
+  router.delete('/razorpay', requireRole('admin'), controller.disconnectRazorpay);
 
   return router;
 }

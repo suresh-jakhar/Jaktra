@@ -4,11 +4,13 @@ import type { WebhookService } from './webhook.service.js';
 import { logger } from '../../shared/logger.js';
 import type { SendgridWebhookService } from './providers/sendgrid.webhook.js';
 
+import type { PaymentService } from '../payment/payment.service.js';
+
 export class WebhookController {
   constructor(
     private gatewayFactory: PaymentGatewayFactory,
     private webhookService: WebhookService,
-    private webhookSecrets: Record<string, string>,
+    private paymentService: PaymentService,
     private sendgridService?: SendgridWebhookService
   ) {}
 
@@ -43,57 +45,49 @@ export class WebhookController {
   };
 
   handlePayment = async (req: Request, res: Response): Promise<any> => {
-    const providerParam = req.params.provider;
-    const providerName = typeof providerParam === 'string' ? providerParam.toLowerCase() : undefined;
+    const tenantId = req.params.tenantId as string;
+    const provider = req.params.provider as string;
     
-    if (!providerName) {
-      return res.status(400).json({ error: 'Provider name required' });
+    if (!tenantId || !provider) {
+      return res.status(400).json({ error: 'Tenant ID and Provider required' });
     }
 
-    const adapter = this.gatewayFactory.getAdapter(providerName);
-    if (!adapter) {
-      logger.warn(`No payment gateway adapter found for provider: ${providerName}`);
-      return res.status(404).json({ error: 'Unsupported payment provider' });
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(tenantId)) {
+      return res.status(400).json({ error: 'Invalid Tenant ID format' });
     }
 
     const rawBody = req.body;
     if (!rawBody || !Buffer.isBuffer(rawBody)) {
-      logger.error(`Raw body is missing or not a buffer for provider ${providerName}. Is express.raw() configured?`);
+      logger.error(`Raw body is missing or not a buffer for provider ${provider}. Is express.raw() configured?`);
       return res.status(400).json({ error: 'Invalid request body' });
     }
 
-    const signature = req.headers['x-razorpay-signature'] || req.headers['stripe-signature'];
-    if (!signature || typeof signature !== 'string') {
-      logger.warn(`Missing signature header for provider ${providerName}`);
+    const sigHeader = req.headers['x-razorpay-signature'] || req.headers['stripe-signature'];
+    const rawSignature = Array.isArray(sigHeader) ? sigHeader[0] : sigHeader;
+    
+    if (!rawSignature || typeof rawSignature !== 'string') {
+      logger.warn(`Missing signature header for provider ${provider}`);
       return res.status(400).json({ error: 'Missing signature' });
     }
+    const signature: string = rawSignature;
 
-    const secret = this.webhookSecrets[providerName];
-    if (!secret) {
-      logger.error(`Webhook secret not configured for provider ${providerName}`);
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
-
-    const isValid = adapter.verifyWebhookSignature(rawBody, signature, secret);
-    if (!isValid) {
-      logger.warn(`Invalid signature for provider ${providerName}`);
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-
-    const payload = adapter.parseWebhookEvent(rawBody);
-    if (!payload) {
-      return res.status(200).json({ status: 'ignored' });
-    }
-
-    if (payload.status === 'captured') {
+    try {
+      let payload;
       try {
-        await this.webhookService.handlePaymentCaptured(payload);
-      } catch (error) {
-        logger.error(`Failed to process payment capture`, { error });
-        return res.status(500).json({ error: 'Internal server error' });
+        payload = JSON.parse(rawBody.toString('utf8'));
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON body' });
       }
-    }
 
-    res.status(200).json({ status: 'success' });
+      const result = await this.paymentService.processPaymentCaptured(tenantId as string, provider as any, payload, rawBody, signature as string);
+      res.status(200).json(result);
+    } catch (error: any) {
+      logger.error(`Failed to process payment capture: ${error instanceof Error ? error.stack : JSON.stringify(error)}`);
+      if (error.message === 'Invalid signature' || error.message?.includes('not registered')) {
+        return res.status(401).json({ error: error.message });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
   };
 }

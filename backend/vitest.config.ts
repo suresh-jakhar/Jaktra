@@ -6,7 +6,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['src/test/setup.ts'],
-    include: ['src/test/**/*.{test,spec}.ts'],
+    include: ['src/test/**/*.{test,spec}.ts', 'src/**/*.test.ts'],
     pool: 'forks',
     poolOptions: { forks: { singleFork: true } },
     hookTimeout: 30000,

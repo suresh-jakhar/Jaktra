@@ -16,6 +16,7 @@ export interface FollowupRequest {
   daysOverdue: number;
   urgencyTier: string;
   followupCount: number;
+  paymentLink?: string;
 }
 
 export interface FollowupResponse {

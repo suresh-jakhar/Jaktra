@@ -36,6 +36,7 @@ export function createInvoiceRouter(
   router.patch('/:id', requireRole('admin', 'manager'), invoiceController.update);
   router.delete('/:id', requireRole('admin', 'manager'), invoiceController.delete);
   router.patch('/:id/status', requireRole('admin', 'manager'), invoiceController.updateStatus);
+  router.post('/:id/payment-link', requireRole('admin', 'manager'), invoiceController.generatePaymentLink);
 
   return router;
 }
