@@ -10,10 +10,10 @@ from api.logging import logger
 import time
 
 def _get_llm() -> ChatGroq:
-    """Return a ChatGroq instance configured from src/config.py."""
+    """Return a ChatGroq instance configured from api.config."""
     return ChatGroq(
         model=config.LLM_MODEL,
-        api_key=config.GROQ_API_KEY,
+        api_key=config.LLM_API_KEY,
         temperature=0.4,
     )
 
@@ -97,7 +97,12 @@ def generate_followup_content(invoice_data: dict) -> dict:
 
     return {
         "invoice_no": invoice_no,
-        "to_email": invoice_data.get("contact_email", ""),
         "subject": subject,
         "body": body,
+        "metadata": {
+            "tier_used": urgency_tier,
+            "model": config.LLM_MODEL,
+            "generation_ms": round(generation_ms, 2),
+            "token_count": token_count
+        }
     }

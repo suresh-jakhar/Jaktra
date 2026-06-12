@@ -8,7 +8,7 @@ Aligned with the Tone Escalation Matrix.
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from src.triage import (
+from src.constants import (
     TIER_WARM,
     TIER_FIRM,
     TIER_SERIOUS,
