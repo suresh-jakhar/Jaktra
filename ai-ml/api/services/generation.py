@@ -2,7 +2,7 @@ import json
 import groq
 from langchain_groq import ChatGroq
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from src import config
+from api.config import settings as config
 from src.security import sanitize_input
 from api.services.output_parser import _parse_email_output
 from prompts.email_prompt import get_prompt_for_tier

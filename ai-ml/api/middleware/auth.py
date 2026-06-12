@@ -1,14 +1,14 @@
-import os
 import hmac
 import logging
 from fastapi import Request, HTTPException
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
 async def verify_service_key(request: Request):
-    expected_key = os.getenv("AI_ML_SERVICE_KEY")
+    expected_key = settings.SERVICE_KEY
     if not expected_key:
-        logger.warning("AI_ML_SERVICE_KEY is not set in environment.")
+        logger.warning("SERVICE_KEY is not set in configuration.")
         raise HTTPException(status_code=500, detail="Server configuration error")
         
     key = request.headers.get("X-Service-Key")

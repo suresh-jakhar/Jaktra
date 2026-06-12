@@ -3,8 +3,6 @@ import logging
 import warnings
 import argparse
 import sys
-from src import config
-
 os.environ["PYTHONWARNINGS"] = "ignore"
 warnings.filterwarnings("ignore")
 logging.captureWarnings(True)
