@@ -1,6 +1,9 @@
 import os
 import logging
 import warnings
+import argparse
+import sys
+from src import config
 
 os.environ["PYTHONWARNINGS"] = "ignore"
 warnings.filterwarnings("ignore")
@@ -10,30 +13,14 @@ logging.getLogger("py.warnings").setLevel(logging.CRITICAL)
 """
 main.py
 
-Entry point for the Finance Credit Follow-Up Email Agent.
-
-Usage:
-    python main.py            # Starts the background scheduler (default)
-    python main.py --now      # Runs one sweep immediately
-    python main.py --dry-run  # Forces safe mode for the run/scheduler
-    python main.py --send     # Forces live mode for the run/scheduler
+Legacy entry point for the Finance Credit Follow-Up Email Agent.
+Orchestration has been moved to the backend.
 """
-
-import argparse
-import sys
-from src import config
-
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Finance Credit Follow-Up Email Agent",
+        description="Finance Credit Follow-Up Email Agent (Legacy)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=(
-            "Examples:\n"
-            "  python main.py --dry-run          # simulate without sending\n"
-            "  python main.py --send             # send real emails via SMTP\n"
-            "  python main.py --dry-run --limit 5  # test just 5 invoices\n"
-        ),
     )
     parser.add_argument(
         "--limit",
@@ -41,35 +28,29 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Maximum number of invoices to process in this run",
     )
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument(
+    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Override .env — force dry-run mode (no emails sent)",
+        help="Dry run flag (ignored, handled by backend)",
     )
-    mode.add_argument(
+    parser.add_argument(
         "--send",
         action="store_true",
-        help="Override .env — force live mode (real emails via SMTP)",
+        help="Send flag (ignored, handled by backend)",
     )
     parser.add_argument(
         "--now",
         action="store_true",
-        help="Run one sweep immediately instead of starting the scheduler",
+        help="Run immediately flag (ignored)",
     )
     return parser.parse_args()
 
-
-def _print_banner(dry_run: bool) -> None:
-    mode_label = "DRY-RUN (safe)" if dry_run else "LIVE (emails will be sent)"
+def _print_banner() -> None:
     print("=" * 60)
-    print("  Finance Credit Follow-Up Email Agent")
-    print(f"  Mode    : {mode_label}")
-    print(f"  Dataset : {config.DATA_PATH}")
-    print(f"  Output  : {config.OUTPUT_DIR}")
+    print("  Finance Credit Follow-Up Email Agent (Legacy)")
+    print("  Note: Orchestration is now handled by the backend.")
     print("=" * 60)
     print()
-
 
 def _print_summary(summary: dict) -> None:
     print()
@@ -82,27 +63,9 @@ def _print_summary(summary: dict) -> None:
     print(f"  Report    : {summary.get('report_file', 'N/A')}")
     print("=" * 60)
 
-
 def main() -> int:
-    """
-    Orchestrate the full agent run.
-
-    Returns:
-        0 on success, 1 on unhandled error.
-    """
     args = _parse_args()
-
-    if args.dry_run:
-        config.DRY_RUN = True
-    elif args.send:
-        config.DRY_RUN = False
-
-    if not args.now:
-        from src.scheduler import start_scheduler
-        start_scheduler()
-        return 0
-
-    _print_banner(config.DRY_RUN)
+    _print_banner()
 
     try:
         from src.agent import run_agent  
@@ -114,14 +77,8 @@ def main() -> int:
         print(f"\n[ERROR] Unhandled exception: {exc}")
         return 1
 
-    # Persist last-run timestamp so scheduler missed-run detection stays current
-    from src.scheduler import _save_last_run_timestamp
-    _save_last_run_timestamp()
-
     _print_summary(summary)
-
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())
