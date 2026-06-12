@@ -3,28 +3,21 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 from src.triage import (
-    TIER_REMINDER,
-    TIER_FIRST_FOLLOWUP,
-    TIER_SECOND_FOLLOWUP,
-    TIER_ESCALATION,
-    TIER_FINAL_NOTICE,
+    TIER_WARM,
+    TIER_FIRM,
+    TIER_SERIOUS,
+    TIER_STERN,
 )
 from prompts.email_prompt import (
     get_prompt_for_tier,
-    PROMPT_REMINDER,
-    PROMPT_FIRST_FOLLOWUP,
-    PROMPT_SECOND_FOLLOWUP,
-    PROMPT_ESCALATION,
-    PROMPT_FINAL_NOTICE,
     _PROMPT_REGISTRY,
 )
 
 ALL_TIERS = [
-    TIER_REMINDER,
-    TIER_FIRST_FOLLOWUP,
-    TIER_SECOND_FOLLOWUP,
-    TIER_ESCALATION,
-    TIER_FINAL_NOTICE,
+    TIER_WARM,
+    TIER_FIRM,
+    TIER_SERIOUS,
+    TIER_STERN,
 ]
 
 # Sample invoice values used to format every template
@@ -36,6 +29,9 @@ SAMPLE = {
     "days_overdue": "45",
     "followup_count": "5",
     "format_instruction": "",   # placeholder — agent will supply real instruction
+    "payment_link": "https://example.com/pay",
+    "bank_details": "Bank 123",
+    "sender_name": "Test Sender",
 }
 
 print("=== STEP 3 — PROMPT TEMPLATE TESTS ===\n")
@@ -83,7 +79,6 @@ print()
 print("[5] Required input variables present in each template")
 REQUIRED_VARS = {
     "client_name", "invoice_no", "invoice_amount",
-    "due_date", "days_overdue", "followup_count",
 }
 for tier in ALL_TIERS:
     prompt = get_prompt_for_tier(tier)

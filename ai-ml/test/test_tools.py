@@ -21,7 +21,7 @@ from src.tools import (
     update_invoice_record,
     generate_run_report,
 )
-assert len(ALL_TOOLS) == 6, f"Expected 6 tools, got {len(ALL_TOOLS)}"
+assert len(ALL_TOOLS) == 7, f"Expected 7 tools, got {len(ALL_TOOLS)}"
 print(f"    PASS  ALL_TOOLS has {len(ALL_TOOLS)} tools")
 for t in ALL_TOOLS:
     print(f"    PASS  Tool registered: '{t.name}'")

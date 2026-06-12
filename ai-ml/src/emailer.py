@@ -17,6 +17,7 @@ class SendResult:
     status: str          # "sent" | "error"
     to: str
     timestamp: str
+    body_preview: str = ""
 
 
 def send_email(to: str, subject: str, body: str, urgency_tier: str | None = None) -> SendResult:
@@ -46,6 +47,16 @@ def send_email(to: str, subject: str, body: str, urgency_tier: str | None = None
         )
 
     timestamp = datetime.now(tz=timezone.utc).isoformat()
+
+    if getattr(config, 'DRY_RUN', False):
+        return SendResult(
+            success=True,
+            error=None,
+            status="dry_run",
+            to=to,
+            timestamp=timestamp,
+            body_preview=body[:200]
+        )
 
 
     # Build the MIME message

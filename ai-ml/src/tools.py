@@ -174,7 +174,7 @@ def generate_followup_email(invoice_no: str) -> str:
         days_overdue=raw.get("days_overdue", 0),
         followup_count=raw.get("followup_count", 0),
         sender_name=config.SMTP_SENDER_NAME,
-        payment_link=config.PAYMENT_LINK,
+        payment_link=raw.get("payment_link") or config.PAYMENT_LINK,
         bank_details=config.BANK_DETAILS,
         format_instruction=(
             "\nRespond with ONLY the email in this exact format — no extra commentary:\n"
@@ -421,7 +421,7 @@ def process_invoice(invoice_no: str) -> str:
         days_overdue=raw.get("days_overdue", 0),
         followup_count=raw.get("followup_count", 0),
         sender_name=config.SMTP_SENDER_NAME,
-        payment_link=config.PAYMENT_LINK,
+        payment_link=raw.get("payment_link") or config.PAYMENT_LINK,
         bank_details=config.BANK_DETAILS,
         format_instruction=(
             "\nRespond with ONLY the email in this exact format:\n"

@@ -39,7 +39,7 @@ def fresh_df() -> pd.DataFrame:
 # ── Test 1: followup_count incremented by exactly 1 ─────────────────────────
 print("[1] followup_count incremented by 1")
 df = fresh_df()
-target = "INV-1006"   # followup_count=1 in the dataset
+target = df[df["payment_status"] == "Pending"].iloc[0]["invoice_no"]
 before = int(df.loc[df["invoice_no"] == target, "followup_count"].iloc[0])
 
 returned_df = update_followup(target, df)
@@ -59,7 +59,7 @@ print()
 # ── Test 3: returns the same DataFrame object (mutates in-place) ──────────────
 print("[3] Returns the same DataFrame object (in-place mutation)")
 df2 = fresh_df()
-returned = update_followup("INV-1006", df2)
+returned = update_followup(target, df2)
 assert returned is df2, "update_followup should return the same DataFrame object"
 print("    PASS  Returned object is the same DataFrame (id match)")
 print()
@@ -68,10 +68,10 @@ print()
 print("[4] Only the targeted invoice row is modified — others unchanged")
 df3 = fresh_df()
 snapshot_before = df3[["invoice_no", "followup_count", "last_followup_date"]].copy()
-update_followup("INV-1006", df3)
+update_followup(target, df3)
 
 for _, row in df3.iterrows():
-    if row["invoice_no"] == "INV-1006":
+    if row["invoice_no"] == target:
         continue   # skip the modified row
     orig = snapshot_before.loc[snapshot_before["invoice_no"] == row["invoice_no"]]
     assert int(orig["followup_count"].iloc[0]) == int(row["followup_count"]), (
@@ -98,7 +98,7 @@ import src.updater as updater_module
 
 df5 = fresh_df()
 with patch("src.data_loader.save_invoices") as mock_save:
-    update_followup("INV-1006", df5)
+    update_followup(target, df5)
     assert mock_save.call_count == 0, "save_invoices should NOT be called by update_followup"
 print("    PASS  save_invoices not called by update_followup")
 print()
@@ -110,7 +110,7 @@ shutil.copy(DATA_PATH, rt_tmp)
 
 # Load
 rt_df = load_invoices(rt_tmp)
-invoice_no = "INV-1012"
+invoice_no = rt_df[rt_df["payment_status"] == "Pending"].iloc[1]["invoice_no"]
 before_count = int(rt_df.loc[rt_df["invoice_no"] == invoice_no, "followup_count"].iloc[0])
 
 # Update in-memory
@@ -129,7 +129,7 @@ total_rows = len(rt_df2)
 
 assert after_count == before_count + 1, f"Count wrong after round-trip: {before_count} -> {after_count}"
 assert after_date_rt == TODAY, f"Date wrong after round-trip: {after_date_rt}"
-assert total_rows == 200, f"Row count changed after round-trip: {total_rows}"
+assert total_rows == 9, f"Row count changed after round-trip: {total_rows}"
 assert list(rt_df2.columns) == list(rt_df.columns), "Column order changed after round-trip"
 
 os.unlink(rt_tmp)

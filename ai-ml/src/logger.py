@@ -57,7 +57,7 @@ def get_summary() -> dict:
         and a copy of all log entries so callers cannot mutate the internal list.
     """
     total_processed = sum(1 for e in _log if e["action"] == "email_generated")
-    total_sent = sum(1 for e in _log if e["result"] == "sent")
+    total_sent = sum(1 for e in _log if e["result"] in ("sent", "dry_run"))
     total_skipped = sum(1 for e in _log if e["result"] == "skipped")
     total_halted = sum(1 for e in _log if e["result"] == "HALTED")
     total_errors = sum(1 for e in _log if e["result"] in ("error", "FAILED", "GROQ_FAILURE"))

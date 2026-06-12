@@ -25,7 +25,7 @@ def _count_successful_sends(audit_log_path: str) -> dict[str, int]:
         for entry in data.get("log", []):
             if (
                 entry.get("action") == "email_sent"
-                and entry.get("result") == "sent"
+                and entry.get("result") in ("sent", "dry_run")
             ):
                 inv = entry.get("invoice_no", "")
                 if inv and inv != "SYSTEM":

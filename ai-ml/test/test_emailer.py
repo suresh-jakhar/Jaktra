@@ -23,7 +23,7 @@ print("=== STEP 5 - EMAIL SENDER TESTS ===\n")
 print("[1] Function signature: send_email(to, subject, body) -> SendResult")
 sig = inspect.signature(emailer.send_email)
 params = list(sig.parameters.keys())
-assert params == ["to", "subject", "body"], f"Wrong params: {params}"
+assert params == ["to", "subject", "body", "urgency_tier"], f"Wrong params: {params}"
 print(f"    PASS  params = {params}")
 print()
 
