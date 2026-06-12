@@ -49,4 +49,13 @@ export const settingsService = {
     const response = await api.patch('/settings/integrations/default-provider', { provider });
     return response.data;
   },
+
+  saveRazorpayKey: async (data: { keyId: string; keySecret: string; webhookSecret: string }): Promise<{ message: string }> => {
+    const response = await api.post('/settings/integrations/razorpay', data);
+    return response.data;
+  },
+
+  disconnectRazorpay: async (): Promise<void> => {
+    await api.delete('/settings/integrations/razorpay');
+  },
 };

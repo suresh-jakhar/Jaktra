@@ -46,4 +46,9 @@ export const invoiceService = {
     });
     return response.data;
   },
+
+  generatePaymentLink: async (id: string): Promise<{ url: string }> => {
+    const response = await api.post(`/invoices/${id}/payment-link`);
+    return response.data;
+  },
 };
