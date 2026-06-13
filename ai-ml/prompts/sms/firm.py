@@ -1,28 +1,10 @@
-"""SMS Persona"""
 from langchain_core.prompts import ChatPromptTemplate
 
-_SYSTEM_PERSONA = (
-    "You are a Senior Accounts Receivable Manager. Your SMS messages must be ultra-concise, "
-    "clear, and under 160 characters if possible. "
-)
-
-_FORMAT_INSTRUCTION = """
-Respond with ONLY the SMS message body. Do not include a subject or any extra text.
-"""
-
-_HUMAN = """
-Write a firm SMS notification for firm tier.
-
-Invoice Details:
-- Client: {client_name}
-- Invoice No: {invoice_no}
-- Amount: ${invoice_amount}
-
-Instructions: Mention payment is overdue. Include link: {payment_link}. Tone should be firm.
-{format_instruction}
-"""
-
 PROMPT = ChatPromptTemplate.from_messages([
-    ("system", _SYSTEM_PERSONA),
-    ("human", _HUMAN),
+    ("system", "You write concise SMS payment reminders under 160 characters. "
+               "Include amount, due date, and payment link. Firm tone."),
+    ("human", "Invoice {invoice_no} for ${invoice_amount} was due {due_date} ({days_overdue} days overdue). "
+              "Client: {client_name}. Payment link: {payment_link}. "
+              "Write a single SMS reminder under 160 characters. Example format: "
+              "Payment for Invoice {invoice_no} (${invoice_amount}) is {days_overdue} days overdue. Please confirm payment date: {payment_link}")
 ])
