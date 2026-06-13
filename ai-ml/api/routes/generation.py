@@ -69,7 +69,7 @@ from src.exceptions import OutputValidationError, PromptInjectionDetectedError
 @router.post("", response_model=FollowupResponse)
 async def generate_followup(request: FollowupRequest):
     try:
-        result = await asyncio.to_thread(generate_followup_content, request.model_dump())
+        result = await generate_followup_content(request.model_dump())
     except ValueError as e:
         if "legal_escalation" in str(e):
             raise HTTPException(status_code=400, detail="TIER_NOT_AUTOMATABLE")
@@ -108,7 +108,7 @@ async def _process_invoice_for_batch(invoice: FollowupRequest, sem: asyncio.Sema
         try:
             # Enforce 60 second timeout per invoice
             result = await asyncio.wait_for(
-                asyncio.to_thread(generate_followup_content, invoice.model_dump()),
+                generate_followup_content(invoice.model_dump()),
                 timeout=60.0
             )
         except asyncio.TimeoutError:

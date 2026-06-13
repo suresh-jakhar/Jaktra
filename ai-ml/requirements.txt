@@ -1,7 +1,8 @@
 langchain
 langchain-community
 langchain-core
-langchain-groq
+langchain-groq==0.2.1
+litellm>=1.40.0
 langgraph
 groq
 pandas
