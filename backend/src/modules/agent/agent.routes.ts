@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AgentController } from './agent.controller.js';
 import { requireRole } from '../../middleware/require-role.js';
+import { validateParam } from '../../middleware/validate-param.js';
 
 export function createAgentRouter(
   agentController: AgentController,
@@ -18,10 +19,10 @@ export function createAgentRouter(
   router.get('/runs', agentController.getRuns);
 
   // GET /api/agent/runs/:id
-  router.get('/runs/:id', agentController.getRunDetails);
+  router.get('/runs/:id', validateParam('id'), agentController.getRunDetails);
 
   // POST /api/agent/run/invoice/:id
-  router.post('/run/invoice/:id', requireRole('admin', 'manager'), agentController.runInvoice);
+  router.post('/run/invoice/:id', validateParam('id'), requireRole('admin', 'manager'), agentController.runInvoice);
 
   return router;
 }

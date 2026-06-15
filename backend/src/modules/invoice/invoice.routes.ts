@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction, RequestHandler } from 'express
 import { csvUpload } from '../../middleware/csv-upload.js';
 import { InvoiceController } from './invoice.controller.js';
 import { requireRole } from '../../middleware/require-role.js';
+import { validateParam } from '../../middleware/validate-param.js';
 
 export function createInvoiceRouter(
   invoiceController: InvoiceController,
@@ -32,11 +33,11 @@ export function createInvoiceRouter(
     invoiceController.importFromCsv,
   );
 
-  router.get('/:id', invoiceController.getById);
-  router.patch('/:id', requireRole('admin', 'manager'), invoiceController.update);
-  router.delete('/:id', requireRole('admin', 'manager'), invoiceController.delete);
-  router.patch('/:id/status', requireRole('admin', 'manager'), invoiceController.updateStatus);
-  router.post('/:id/payment-link', requireRole('admin', 'manager'), invoiceController.generatePaymentLink);
+  router.get('/:id', validateParam('id'), invoiceController.getById);
+  router.patch('/:id', validateParam('id'), requireRole('admin', 'manager'), invoiceController.update);
+  router.delete('/:id', validateParam('id'), requireRole('admin', 'manager'), invoiceController.delete);
+  router.patch('/:id/status', validateParam('id'), requireRole('admin', 'manager'), invoiceController.updateStatus);
+  router.post('/:id/payment-link', validateParam('id'), requireRole('admin', 'manager'), invoiceController.generatePaymentLink);
 
   return router;
 }
