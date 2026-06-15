@@ -145,8 +145,7 @@ export function createApp(config: AppConfig): Application {
   
   app.use(standardLimiter);
 
-  const healthController = new HealthController();
-  app.use('/api/health', createHealthRouter(healthController));
+
 
   if (config.db && config.jwtSecret) {
     const userRepo = new UserRepository(config.db);
@@ -216,6 +215,9 @@ export function createApp(config: AppConfig): Application {
       app.use('/api/agent', createAgentRouter(new AgentController(agentService), authMiddleware, tenantScoped));
     }
   }
+
+  const healthController = new HealthController(config.db, app.locals.aimlService);
+  app.use('/api/health', createHealthRouter(healthController));
 
   // 404 Fallback
   app.use((req: Request, _res: Response, next: NextFunction) => {

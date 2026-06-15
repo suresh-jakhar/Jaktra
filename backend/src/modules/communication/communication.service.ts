@@ -92,7 +92,10 @@ export class CommunicationService {
     const { tenantId, to, subject, html, channel = 'email' } = options;
 
     if (channel !== 'email') {
-      throw new Error(`Channel ${channel} is not supported yet`);
+      throw new CommunicationError(
+        `${channel.toUpperCase()} channel is currently disabled. Only email is operational.`,
+        501
+      );
     }
 
     const settings = await this.communicationRepo.getSettings(tenantId);
