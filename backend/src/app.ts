@@ -193,7 +193,6 @@ export function createApp(config: AppConfig): Application {
     
     app.use('/api/settings/integrations', authMiddleware, tenantScoped, createIntegrationRouter(new IntegrationController(integrationService, communicationService)));
     
-    app.use('/api/settings', createSettingsRouter(new SettingsController(settingsService), authMiddleware, tenantScoped));
     app.locals.authMiddleware = authMiddleware;
     app.locals.authService = authService;
     app.locals.tenantScoped = tenantScoped;
