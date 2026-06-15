@@ -15,6 +15,21 @@ export class CommunicationRepository {
       .orderBy(desc(communications.createdAt));
   }
 
+  async findLastSuccessfulByInvoiceId(invoiceId: string): Promise<Communication | undefined> {
+    const [lastSent] = await this.db
+      .select()
+      .from(communications)
+      .where(
+        and(
+          eq(communications.invoiceId, invoiceId),
+          eq(communications.status, 'sent')
+        )
+      )
+      .orderBy(desc(communications.createdAt))
+      .limit(1);
+    return lastSent;
+  }
+
   async countSuccessfulByInvoiceId(invoiceId: string): Promise<number> {
     const comms = await this.db
       .select()
