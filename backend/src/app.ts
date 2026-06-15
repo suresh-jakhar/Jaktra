@@ -111,28 +111,6 @@ export function createApp(config: AppConfig): Application {
     })
   );
 
-  if (config.db) {
-    const invoiceRepo = new InvoiceRepository(config.db);
-    const eventRepo = new EventRepository(config.db);
-    const communicationRepo = new CommunicationRepository(config.db);
-    const integrationRepo = new IntegrationRepository(config.db);
-    const integrationService = new IntegrationService(integrationRepo);
-    const communicationService = new CommunicationService(communicationRepo, invoiceRepo, integrationService, eventRepo);
-    
-    const gatewayFactory = new PaymentGatewayFactory();
-    gatewayFactory.register(new RazorpayAdapter());
-    
-    const paymentRepo = new PaymentRepository(config.db);
-    const settingsRepo = new SettingsRepository(config.db);
-    const paymentService = new PaymentService(paymentRepo, invoiceRepo, integrationService, gatewayFactory, settingsRepo, eventRepo);
-    app.locals.paymentService = paymentService;
-
-    const webhookService = new WebhookService(invoiceRepo, eventRepo);
-    const sendgridService = new SendgridWebhookService(communicationService, config.sendgridWebhookPublicKey);
-    
-    app.use('/api/webhooks', createWebhookRouter(new WebhookController(gatewayFactory, webhookService, paymentService, sendgridService)));
-  }
-
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use((req, res, next) => {
@@ -142,76 +120,88 @@ export function createApp(config: AppConfig): Application {
 
   app.use(requestId);
   app.use(requestLogger);
-  
   app.use(standardLimiter);
 
-
-
-  if (config.db && config.jwtSecret) {
-    const userRepo = new UserRepository(config.db);
-    const tenantRepo = new TenantRepository(config.db);
-    const authService = new AuthService(userRepo, config.jwtSecret, config.jwtExpiresIn ?? '7d');
-    const tenantService = new TenantService(tenantRepo);
-    const authMiddleware = createAuthMiddleware(authService);
-    
-    const authRouter = createAuthRouter(new AuthController(authService), authMiddleware);
-    app.use('/api/auth', authLimiter, authRouter);
-    
-    app.use('/api/tenants', createTenantRouter(new TenantController(tenantService), authMiddleware));
-
-    const teamRepo = new TeamRepository(config.db);
-    const teamService = new TeamService(teamRepo, userRepo);
-    app.use('/api/team', createTeamRouter(new TeamController(teamService, teamRepo), authMiddleware));
-
+  if (config.db) {
+    // Shared Repositories
     const invoiceRepo = new InvoiceRepository(config.db);
-    const invoiceImportService = new InvoiceImportService(invoiceRepo);
-    const triageService = new TriageService();
-    app.use('/api/invoices', createInvoiceRouter(new InvoiceController(invoiceImportService, invoiceRepo, app.locals.paymentService), authMiddleware, tenantScoped));
-    app.use('/api/invoices', createTriageRouter(new TriageController(triageService, invoiceRepo), authMiddleware, tenantScoped));
-
-    const analyticsRepo = new AnalyticsRepository(config.db);
-    const analyticsService = new AnalyticsService(analyticsRepo);
-    app.use('/api/analytics', createAnalyticsRouter(new AnalyticsController(analyticsService), authMiddleware, tenantScoped));
-
-    const settingsRepo = new SettingsRepository(config.db);
-    const settingsService = new SettingsService(settingsRepo);
-    app.use('/api/settings', createSettingsRouter(new SettingsController(settingsService), authMiddleware, tenantScoped));
-
-    const communicationRepo = new CommunicationRepository(config.db);
-    const reconcilerService = new ReconcilerService(invoiceRepo, communicationRepo, config.db);
-    app.use('/api/invoices', createReconcilerRouter(new ReconcilerController(reconcilerService), authMiddleware, tenantScoped));
-
     const eventRepo = new EventRepository(config.db);
-    const eventService = new EventService(eventRepo, invoiceRepo);
-    app.use('/api', createEventRouter(new EventController(eventService), authMiddleware, tenantScoped));
-
+    const communicationRepo = new CommunicationRepository(config.db);
     const integrationRepo = new IntegrationRepository(config.db);
+    const settingsRepo = new SettingsRepository(config.db);
+    const paymentRepo = new PaymentRepository(config.db);
+
+    // Shared Services
     const integrationService = new IntegrationService(integrationRepo);
-
     const communicationService = new CommunicationService(communicationRepo, invoiceRepo, integrationService, eventRepo);
-    app.use('/api/settings/communication', createCommunicationRouter(new CommunicationController(communicationService), authMiddleware, tenantScoped));
     
-    app.use('/api/settings/integrations', authMiddleware, tenantScoped, createIntegrationRouter(new IntegrationController(integrationService, communicationService)));
+    const gatewayFactory = new PaymentGatewayFactory();
+    gatewayFactory.register(new RazorpayAdapter());
     
-    app.locals.authMiddleware = authMiddleware;
-    app.locals.authService = authService;
-    app.locals.tenantScoped = tenantScoped;
+    const paymentService = new PaymentService(paymentRepo, invoiceRepo, integrationService, gatewayFactory, settingsRepo, eventRepo);
+    app.locals.paymentService = paymentService;
 
-    if (config.aimlServiceUrl) {
-      const aimlService = new AimlService({ baseUrl: config.aimlServiceUrl, serviceKey: config.aimlServiceKey });
-      app.use('/api/aiml', createAimlRouter(new AimlController(aimlService), authMiddleware));
-      app.locals.aimlService = aimlService;
+    const webhookService = new WebhookService(invoiceRepo, eventRepo);
+    const sendgridService = new SendgridWebhookService(communicationService, config.sendgridWebhookPublicKey);
+    
+    app.use('/api/webhooks', createWebhookRouter(new WebhookController(gatewayFactory, webhookService, paymentService, sendgridService)));
 
-      const dlqRepo = new DlqRepository(config.db);
-      const dlqService = new DlqService(dlqRepo);
-      app.use('/api/dlq', createDlqRouter(new DlqController(dlqService), authMiddleware, tenantScoped));
-
-      const idempotencyService = new IdempotencyService(communicationRepo);
-
-      const agentRepo = new AgentRepository(config.db);
+    if (config.jwtSecret) {
+      const userRepo = new UserRepository(config.db);
+      const tenantRepo = new TenantRepository(config.db);
+      const authService = new AuthService(userRepo, config.jwtSecret, config.jwtExpiresIn ?? '7d');
+      const tenantService = new TenantService(tenantRepo);
+      const authMiddleware = createAuthMiddleware(authService);
       
-      const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService, idempotencyService, app.locals.paymentService);
-      app.use('/api/agent', createAgentRouter(new AgentController(agentService), authMiddleware, tenantScoped));
+      const authRouter = createAuthRouter(new AuthController(authService), authMiddleware);
+      app.use('/api/auth', authLimiter, authRouter);
+      
+      app.use('/api/tenants', createTenantRouter(new TenantController(tenantService), authMiddleware));
+
+      const teamRepo = new TeamRepository(config.db);
+      const teamService = new TeamService(teamRepo, userRepo);
+      app.use('/api/team', createTeamRouter(new TeamController(teamService, teamRepo), authMiddleware));
+
+      const invoiceImportService = new InvoiceImportService(invoiceRepo);
+      const triageService = new TriageService();
+      app.use('/api/invoices', createInvoiceRouter(new InvoiceController(invoiceImportService, invoiceRepo, paymentService), authMiddleware, tenantScoped));
+      app.use('/api/invoices', createTriageRouter(new TriageController(triageService, invoiceRepo), authMiddleware, tenantScoped));
+
+      const analyticsRepo = new AnalyticsRepository(config.db);
+      const analyticsService = new AnalyticsService(analyticsRepo);
+      app.use('/api/analytics', createAnalyticsRouter(new AnalyticsController(analyticsService), authMiddleware, tenantScoped));
+
+      const settingsService = new SettingsService(settingsRepo);
+      app.use('/api/settings', createSettingsRouter(new SettingsController(settingsService), authMiddleware, tenantScoped));
+
+      const reconcilerService = new ReconcilerService(invoiceRepo, communicationRepo, config.db);
+      app.use('/api/invoices', createReconcilerRouter(new ReconcilerController(reconcilerService), authMiddleware, tenantScoped));
+
+      const eventService = new EventService(eventRepo, invoiceRepo);
+      app.use('/api', createEventRouter(new EventController(eventService), authMiddleware, tenantScoped));
+
+      app.use('/api/settings/communication', createCommunicationRouter(new CommunicationController(communicationService), authMiddleware, tenantScoped));
+      app.use('/api/settings/integrations', authMiddleware, tenantScoped, createIntegrationRouter(new IntegrationController(integrationService, communicationService)));
+      
+      app.locals.authMiddleware = authMiddleware;
+      app.locals.authService = authService;
+      app.locals.tenantScoped = tenantScoped;
+
+      if (config.aimlServiceUrl) {
+        const aimlService = new AimlService({ baseUrl: config.aimlServiceUrl, serviceKey: config.aimlServiceKey });
+        app.use('/api/aiml', createAimlRouter(new AimlController(aimlService), authMiddleware));
+        app.locals.aimlService = aimlService;
+
+        const dlqRepo = new DlqRepository(config.db);
+        const dlqService = new DlqService(dlqRepo);
+        app.use('/api/dlq', createDlqRouter(new DlqController(dlqService), authMiddleware, tenantScoped));
+
+        const idempotencyService = new IdempotencyService(communicationRepo);
+
+        const agentRepo = new AgentRepository(config.db);
+        const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService, idempotencyService, paymentService);
+        app.use('/api/agent', createAgentRouter(new AgentController(agentService), authMiddleware, tenantScoped));
+      }
     }
   }
 
