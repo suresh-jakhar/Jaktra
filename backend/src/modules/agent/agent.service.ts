@@ -62,7 +62,8 @@ export class AgentService {
             inv.id,
             'halted',
             { reason: 'idempotency_skip', ...idempotencyCheck, runId },
-            'system'
+            'system',
+            tenantId
           );
           continue;
         }
@@ -73,7 +74,8 @@ export class AgentService {
             inv.id,
             'halted',
             { reason: 'no_automated_channel', tier: inv.computedTier, runId },
-            'system'
+            'system',
+            tenantId
           );
           continue;
         }
@@ -107,13 +109,14 @@ export class AgentService {
             inv.id,
             resp.emailSent ? 'email_sent' : 'email_generated',
             { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel, runId },
-            'ai-agent'
+            'ai-agent',
+            tenantId
           );
 
           if (!resp.error) {
             await this.dlqService.clearFailure(inv.id, tenantId).catch(() => {});
           } else {
-            await this.dlqService.recordFailure(inv.id, resp.error).catch(() => {});
+            await this.dlqService.recordFailure(inv.id, tenantId, resp.error).catch(() => {});
           }
         }
 
@@ -124,9 +127,10 @@ export class AgentService {
           inv.id,
           'halted',
           { error: String(err), runId },
-          'system'
+          'system',
+          tenantId
         );
-        await this.dlqService.recordFailure(inv.id, String(err)).catch(() => {});
+        await this.dlqService.recordFailure(inv.id, tenantId, String(err)).catch(() => {});
       }
 
       if (processed % 10 === 0 || processed === invoices.length) {
@@ -162,7 +166,8 @@ export class AgentService {
         invoice.id,
         'halted',
         { reason: 'no_automated_channel', tier: urgencyTier },
-        'system'
+        'system',
+        tenantId
       );
       return { skipped: true, reason: 'no_automated_channel', tier: urgencyTier };
     }
@@ -173,7 +178,8 @@ export class AgentService {
         invoice.id,
         'halted',
         { reason: 'idempotency_skip', ...idempotencyCheck },
-        'system'
+        'system',
+        tenantId
       );
       return idempotencyCheck;
     }
@@ -206,13 +212,14 @@ export class AgentService {
           invoice.id,
           resp.emailSent ? 'email_sent' : 'email_generated',
           { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel },
-          'ai-agent'
+          'ai-agent',
+          tenantId
         );
 
         if (!resp.error) {
           await this.dlqService.clearFailure(invoice.id, tenantId).catch(() => {});
         } else {
-          await this.dlqService.recordFailure(invoice.id, resp.error).catch(() => {});
+          await this.dlqService.recordFailure(invoice.id, tenantId, resp.error).catch(() => {});
         }
 
         results.push(resp);
@@ -224,9 +231,10 @@ export class AgentService {
         invoice.id,
         'halted',
         { error: String(err) },
-        'system'
+        'system',
+        tenantId
       );
-      await this.dlqService.recordFailure(invoice.id, String(err)).catch(() => {});
+      await this.dlqService.recordFailure(invoice.id, tenantId, String(err)).catch(() => {});
       throw err;
     }
   }

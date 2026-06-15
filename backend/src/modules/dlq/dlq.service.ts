@@ -3,8 +3,8 @@ import { DlqRepository } from './dlq.repository.js';
 export class DlqService {
   constructor(private dlqRepo: DlqRepository) {}
 
-  async recordFailure(invoiceId: string, errorMsg: string) {
-    return await this.dlqRepo.recordFailure(invoiceId, errorMsg);
+  async recordFailure(invoiceId: string, tenantId: string, errorMsg: string) {
+    return await this.dlqRepo.recordFailure(invoiceId, tenantId, errorMsg);
   }
 
   async clearFailure(invoiceId: string, tenantId: string) {

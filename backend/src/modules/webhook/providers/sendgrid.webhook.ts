@@ -44,14 +44,17 @@ export class SendgridWebhookService {
     }
 
     for (const event of events) {
-      const { event: eventType, communication_id, invoice_id, timestamp: eventTimestamp } = event;
+      const { event: eventType, communication_id, invoice_id, tenant_id, timestamp: eventTimestamp } = event;
 
       if (!communication_id || !invoice_id) {
         continue;
       }
 
+      const tenantId = tenant_id || '';
+
       if (['opened', 'open'].includes(eventType)) {
         await this.communicationService.handleEmailEvent(
+          tenantId,
           communication_id,
           invoice_id,
           'opened',
@@ -60,6 +63,7 @@ export class SendgridWebhookService {
         );
       } else if (['clicked', 'click'].includes(eventType)) {
         await this.communicationService.handleEmailEvent(
+          tenantId,
           communication_id,
           invoice_id,
           'clicked',
@@ -68,6 +72,7 @@ export class SendgridWebhookService {
         );
       } else if (['bounced', 'bounce'].includes(eventType)) {
         await this.communicationService.handleEmailEvent(
+          tenantId,
           communication_id,
           invoice_id,
           'bounced',
@@ -76,6 +81,7 @@ export class SendgridWebhookService {
         );
       } else if (['dropped', 'drop'].includes(eventType)) {
         await this.communicationService.handleEmailEvent(
+          tenantId,
           communication_id,
           invoice_id,
           'dropped',

@@ -27,8 +27,10 @@ export class EventService {
     eventType: EventType,
     payload?: Record<string, unknown>,
     actor: string = 'system',
+    tenantId?: string,
   ): Promise<Event> {
     return this.eventRepo.create({
+      tenantId: tenantId ?? '',
       invoiceId,
       eventType,
       payload: payload ?? null,

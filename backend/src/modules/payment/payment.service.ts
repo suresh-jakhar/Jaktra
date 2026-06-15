@@ -201,6 +201,7 @@ export class PaymentService {
       if (invoice) {
         try {
           await this.eventRepo.create({
+            tenantId,
             invoiceId: invoice.id,
             eventType: 'payment_webhook_failed',
             actor: 'system',

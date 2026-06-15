@@ -30,7 +30,7 @@ export class EventRepository {
       })
       .from(events)
       .innerJoin(invoices, eq(events.invoiceId, invoices.id))
-      .where(eq(invoices.tenantId, tenantId))
+      .where(eq(events.tenantId, tenantId))
       .orderBy(desc(events.createdAt))
       .limit(limit);
 

@@ -33,6 +33,7 @@ export class WebhookService {
 
       // Record timeline event
       await this.eventRepo.create({
+        tenantId: invoice.tenantId,
         invoiceId: invoice.id,
         eventType: 'payment_received',
         actor: 'system',

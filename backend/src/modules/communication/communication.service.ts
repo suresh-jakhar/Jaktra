@@ -51,6 +51,7 @@ export class CommunicationService {
     }
 
     return this.communicationRepo.create({
+      tenantId,
       invoiceId: input.invoiceId,
       channel: input.channel,
       subject: input.subject ?? null,
@@ -62,6 +63,7 @@ export class CommunicationService {
   }
 
   async handleEmailEvent(
+    tenantId: string,
     communicationId: string,
     invoiceId: string,
     eventType: 'opened' | 'clicked' | 'bounced' | 'dropped',
@@ -79,6 +81,7 @@ export class CommunicationService {
     if (this.eventRepo) {
       const dbEventType = `email_${eventType === 'dropped' ? 'bounced' : eventType}`;
       await this.eventRepo.create({
+        tenantId,
         invoiceId,
         eventType: dbEventType,
         actor: 'system',

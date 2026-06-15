@@ -5,11 +5,12 @@ import { dlqEntries, invoices } from '../../db/schema.js';
 export class DlqRepository {
   constructor(private readonly db: DatabaseClient) {}
   
-  async recordFailure(invoiceId: string, errorMsg: string) {
+  async recordFailure(invoiceId: string, tenantId: string, errorMsg: string) {
     return await this.db
       .insert(dlqEntries)
       .values({
         invoiceId,
+        tenantId,
         consecutiveFailures: 1,
         lastError: errorMsg,
         firstFailure: new Date(),
@@ -56,7 +57,7 @@ export class DlqRepository {
       })
       .from(dlqEntries)
       .innerJoin(invoices, eq(dlqEntries.invoiceId, invoices.id))
-      .where(eq(invoices.tenantId, tenantId))
+      .where(eq(dlqEntries.tenantId, tenantId))
       .orderBy(desc(dlqEntries.consecutiveFailures), desc(dlqEntries.lastFailure));
   }
 
@@ -69,7 +70,7 @@ export class DlqRepository {
       })
       .from(dlqEntries)
       .innerJoin(invoices, eq(dlqEntries.invoiceId, invoices.id))
-      .where(eq(invoices.tenantId, tenantId));
+      .where(eq(dlqEntries.tenantId, tenantId));
       
     return {
       total: Number(result[0]?.total || 0),

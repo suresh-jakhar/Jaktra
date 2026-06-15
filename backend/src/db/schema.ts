@@ -134,6 +134,9 @@ export const communications = pgTable(
   'communications',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
     invoiceId: uuid('invoice_id')
       .notNull()
       .references(() => invoices.id, { onDelete: 'cascade' }),
@@ -150,7 +153,7 @@ export const communications = pgTable(
       .defaultNow(),
   },
   (table) => [
-
+    index('communications_tenant_id_idx').on(table.tenantId),
     index('communications_invoice_id_status_sent_at_idx').on(
       table.invoiceId,
       table.status,
@@ -164,6 +167,9 @@ export const events = pgTable(
   'events',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
     invoiceId: uuid('invoice_id')
       .notNull()
       .references(() => invoices.id, { onDelete: 'cascade' }),
@@ -175,6 +181,7 @@ export const events = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index('events_tenant_id_idx').on(table.tenantId),
     index('events_invoice_id_created_at_idx').on(
       table.invoiceId,
       table.createdAt
@@ -215,6 +222,9 @@ export const dlqEntries = pgTable('dlq_entries', {
   invoiceId: uuid('invoice_id')
     .primaryKey()
     .references(() => invoices.id, { onDelete: 'cascade' }),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
   consecutiveFailures: integer('consecutive_failures').notNull().default(1),
   lastError: text('last_error'),
   firstFailure: timestamp('first_failure', { withTimezone: true })
@@ -223,7 +233,9 @@ export const dlqEntries = pgTable('dlq_entries', {
   lastFailure: timestamp('last_failure', { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (table) => [
+  index('dlq_entries_tenant_id_idx').on(table.tenantId),
+]);
 
 export const tenantSettings = pgTable('tenant_settings', {
   tenantId: uuid('tenant_id')
