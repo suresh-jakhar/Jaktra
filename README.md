@@ -12,34 +12,17 @@ The platform is structured as a decoupled, multi-service system comprising three
 
 ```mermaid
 graph TD
-    subgraph Client Application
-        A[React Frontend]
-    end
-
-    subgraph Orchestration Layer
-        B[Express Backend API]
-        C[(PostgreSQL Database)]
-        D[(Redis Cache)]
-    end
-
-    subgraph Intelligence Layer
-        E[FastAPI AI-ML Service]
-        F[Groq LLaMA 3.1 8B LLM]
-    end
-
-    subgraph External Integrations
-        G[SendGrid / SMTP]
-        H[Razorpay Payment Gateway]
-    end
-
-    A <-->|REST API / Auth| B
-    B <-->|Drizzle ORM| C
-    B <-->|Session / Caching| D
-    B <-->|Service Auth| E
-    E <-->|Inference| F
-    B -->|Email Dispatch| G
-    B <-->|Webhooks / Payments| H
+    A[React Frontend] <-->|REST API / Auth| B[Express Backend API]
+    
+    B <-->|Drizzle ORM| C[(PostgreSQL Database)]
+    B <-->|Session / Caching| D[(Redis Cache)]
+    B <-->|Service Auth| E[FastAPI AI-ML Service]
+    B -->|Email Dispatch| G[SendGrid / SMTP]
+    B <-->|Webhooks / Payments| H[Razorpay Payment Gateway]
+    
+    E <-->|Inference| F[Groq LLaMA 3.1 8B LLM]
 ```
+
 
 ---
 
