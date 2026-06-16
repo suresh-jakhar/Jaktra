@@ -24,16 +24,26 @@ const server = app.listen(config.PORT, () => {
 });
 
 function shutdown(signal: string): void {
-  logger.info(`Received ${signal}. Shutting down…`);
+  logger.info(`Received ${signal}. Starting graceful shutdown…`);
+
   server.close(() => {
-    logger.info('Server closed.');
-    process.exit(0);
+    logger.info('No new connections. Waiting for in-flight requests…');
   });
 
+  const agentService = app.locals.agentService;
+  const checkInterval = setInterval(() => {
+    if (!agentService || !agentService.hasActiveRuns()) {
+      clearInterval(checkInterval);
+      logger.info('All agent runs complete. Shutting down.');
+      process.exit(0);
+    }
+  }, 1000);
+
   setTimeout(() => {
-    logger.error('Forced shutdown after timeout.');
+    clearInterval(checkInterval);
+    logger.error('Forced shutdown after 30s timeout.');
     process.exit(1);
-  }, 10_000);
+  }, 30_000);
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));

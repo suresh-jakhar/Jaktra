@@ -101,7 +101,6 @@ export function createApp(config: AppConfig): Application {
 
   const app = express();
   
-  // Trust the first proxy (ngrok) for express-rate-limit
   app.set('trust proxy', 1);
 
   app.use(
@@ -200,6 +199,7 @@ export function createApp(config: AppConfig): Application {
 
         const agentRepo = new AgentRepository(config.db);
         const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService, idempotencyService, paymentService);
+        app.locals.agentService = agentService;
         app.use('/api/agent', createAgentRouter(new AgentController(agentService), authMiddleware, tenantScoped));
       }
     }

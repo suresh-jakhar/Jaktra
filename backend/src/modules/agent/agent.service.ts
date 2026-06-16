@@ -9,6 +9,8 @@ import { PaymentService } from '../payment/payment.service.js';
 import { logger } from '../../shared/logger.js';
 
 export class AgentService {
+  private activeRuns = new Set<string>();
+
   constructor(
     private agentRepo: AgentRepository,
     private aimlService: AimlService,
@@ -19,6 +21,10 @@ export class AgentService {
     private idempotencyService: IdempotencyService,
     private paymentService: PaymentService
   ) {}
+
+  hasActiveRuns(): boolean {
+    return this.activeRuns.size > 0;
+  }
 
   async triggerRun(tenantId: string) {
     const invoices = await this.invoiceRepo.findByTenant(tenantId);
@@ -39,8 +45,12 @@ export class AgentService {
       });
     }
 
+    this.activeRuns.add(run.id);
     this.processRunInBackground(run.id, tenantId, triaged.invoices)
-      .catch(err => logger.error(`Background run ${run.id} failed`, err));
+      .catch(err => logger.error(`Background run ${run.id} failed`, err))
+      .finally(() => {
+        this.activeRuns.delete(run.id);
+      });
 
     return run;
   }
