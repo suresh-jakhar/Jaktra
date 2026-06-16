@@ -1,72 +1,107 @@
-# Enterprise Credit Collections Agent
+# Jaktra
 
-Chasing unpaid invoices is a repetitive manual task that consumes hours of finance teams’ time. I built this autonomous agent to manage the entire “accounts receivable” process, from triaging overdue payments, to writing personalized, context-aware emails, to updating the ledger.
+An enterprise-grade accounts receivable automation platform that replaces manual collection workflows with intelligent, multi-channel agents. It orchestrates communication cycles from initial reminders to payment reconciliation.
 
-## Workflow
+## System Architecture
 
-It follows a 5-Stage Tone Escalation Matrix I created to balance professional courtesy and firm collection tactics.
+The platform is structured as a decoupled, multi-service system comprising three core components:
 
+1. **Frontend Dashboard**: A responsive web portal built with React, TypeScript, and Vite.
+2. **Backend Engine**: A central API service built with Express, TypeScript, and Drizzle ORM, backed by a PostgreSQL database.
+3. **AI-ML Service**: A high-performance Python FastAPI service dedicated to agent execution, risk analysis, and generative AI features.
 
 ```mermaid
 graph TD
-    A[Data_Ingestion.csv] -->|24h Scheduler| B(Triage Engine)
-    B -->|Calculate Aging| C{Urgency Matrix}
-    
-    C -->|1-7 Days| D[Stage 1: Warm Reminder]
-    C -->|8-14 Days| E[Stage 2: Firm Follow-up]
-    C -->|15-21 Days| F[Stage 3: Serious Notice]
-    C -->|22-30 Days| G[Stage 4: Stern Warning]
-    C -->|>30 Days| H[Stage 5: Legal Stop]
-    
-    D & E & F & G --> I[Security Sanitization]
-    I --> J[Groq LLaMA 3.1 8B Generation]
-    J --> K[Output Validator]
-    
-    K --> L{Dispatch Mode}
-    L -->|Live SMTP| M[Recipient Inbox]
-    L -->|Dry Run| N[Local Audit Log]
-    
-    M & N --> O[Auto-Update CSV Ledger]
-    H -->|Halt| P[Manual Finance Review]
+    subgraph Client Application
+        A[React Frontend]
+    end
+
+    subgraph Orchestration Layer
+        B[Express Backend API]
+        C[(PostgreSQL Database)]
+        D[(Redis Cache)]
+    end
+
+    subgraph Intelligence Layer
+        E[FastAPI AI-ML Service]
+        F[Groq LLaMA 3.1 8B LLM]
+    end
+
+    subgraph External Integrations
+        G[SendGrid / SMTP]
+        H[Razorpay Payment Gateway]
+    end
+
+    A <-->|REST API / Auth| B
+    B <-->|Drizzle ORM| C
+    B <-->|Session / Caching| D
+    B <-->|Service Auth| E
+    E <-->|Inference| F
+    B -->|Email Dispatch| G
+    B <-->|Webhooks / Payments| H
 ```
 
-## Tech Stack & Rationale
+---
 
-- **LLM: Groq (LLaMA 3.1 8B)**: picked Groq for its fast inference speeds and generous free-tier credits, allowing for rapid testing and iteration while still delivering solid reasoning quality for writing professional emails.
-- **Orchestration: LangChain & LangGraph**:
-    - **LangChain** provides the "Tools" (Emailing, CSV Loading) and Prompt Templates.
-    - **LangGraph** allows the agent to be "Stateful"—it remembers which stage of the run it is in and can recover from errors without losing progress.
-- **Automation: APScheduler**: Implemented as a background service with **Timezone Support (Asia/Kolkata)** and a live ticking countdown timer in the terminal.
-- **Logging**:  JSON log file 
-- **Monitoring: Streamlit**: View of the collection pipeline and aging reports.
+## Core Modules & Functionality
 
-## Security & Risk Mitigation
+### 1. Multi-Tenant Backend (backend/)
+- **Authentication**: JWT-based session security with bcryptjs password hashing and route protection.
+- **Tenant Isolation**: Complete database and route-level namespace isolation for multiple organizations.
+- **Invoice & Collections Management**: Automated workflows for tracking payment statuses (Pending, Paid, Overdue, Written Off).
+- **Communication Engine**: Scheduled follow-ups using a timezone-aware scheduling system with support for SendGrid or custom SMTP credentials.
+- **Payment Gateway Integration**: Custom adapters for Razorpay supporting dynamic payment link generation and automated webhooks validation.
+- **Dead Letter Queue (DLQ)**: Isolates failed communications and halts retry loops on high-consecutive failures.
+- **Idempotency Guard**: Guarantees that only one collection message is dispatched within a 20-hour window per invoice.
 
+### 2. React SPA Frontend (frontend/)
+- **Dashboard**: High-level collection summaries, aging pyramids, and analytics charts using Recharts.
+- **Invoice Portal**: Invoices view, importing from CSV, tracking communication logs, and sending manual overrides.
+- **Agent Controls**: Visibility into active agent execution runs, success metrics, and DLQ reviews.
+- **Team Management**: User role configurations (Admin, Manager, Viewer) and invitations handling.
+- **System Settings**: Configurable email templates, tenant parameters, and payment integration setups.
 
-1.  **Prompt Injection Defense**: Every piece of CSV data is scrubbed through a **Sanitization Layer** before reaching the LLM to prevent "Ignore previous instructions" attacks.
-2.  **PII Data Privacy**: Audit logs use a custom **Redaction Utility** to mask email addresses (e.g., `s***@gmail.com`), ensuring PII is never stored in plain text on disk.
-3.  **Hallucination Guard**: A **Structure Validator** checks every LLM response. If the AI misses a subject line or messes up a payment link, the system halts the send and logs a validation error.
-4.  **Strategic Stop-Limit**: The agent is hard-coded to **Halt at Stage 5**. It is forbidden from auto-escalating to legal action without a human "Manual Override."
+### 3. FastAPI AI-ML Engine (ai-ml/)
+- **FastAPI Endpoint Routing**: Dedicated endpoints for `/health`, `/generation`, `/risk`, and `/agents`.
+- **Structured LLM Generation**: Prompts tailored to a 5-Stage Tone Escalation Matrix (Warm, Firm, Serious, Stern, Legal Stop).
+- **Output Validation**: Structure validators ensure subjects and payment links are formatted correctly.
+- **Security & Redaction**: Prompt injection filtering and automated PII masking on outbound payloads.
+- **Risk Assessment**: Score-based models evaluating likelihood of default to dynamically adjust communication parameters.
 
-## Future Scaling
+---
 
-- **FastAPI Integration**: I will wrap the agent in a REST API to allow ERP systems (SAP/QuickBooks) to trigger follow-ups via Webhooks.
-- **Redis Rate Limiting**: I will implement token-bucket limiting to prevent API abuse and manage LLM cost-efficiency.
-- **SQL Backend**: I will transition from CSV to a proper relational database (PostgreSQL) for handling thousands of concurrent invoices.
+## The 5-Stage Tone Escalation Matrix
 
-## Setup & Usage
+The collection logic follows an incremental escalation matrix designed to maximize cash flow while retaining commercial relationships:
 
-**1. Configuration**
-Define your credentials and automation settings in `.env`:
-```ini
-SCHEDULE_HOUR=09:00     # Daily trigger time
-TIMEZONE=Asia/Kolkata   # Your local timezone
-DRY_RUN=true            # Set to false for live SMTP
+1. **Stage 1 (Warm Reminder)**: Sent 1-7 days past due. Informative and helpful tone.
+2. **Stage 2 (Firm Follow-up)**: Sent 8-14 days past due. Direct request for payment confirmation.
+3. **Stage 3 (Serious Notice)**: Sent 15-21 days past due. Mentions potential access constraints or terms breach.
+4. **Stage 4 (Stern Warning)**: Sent 22-30 days past due. Explicit payment deadlines.
+5. **Stage 5 (Legal Stop)**: Halts the automated pipeline. Requires manual human override and legal review.
+
+---
+
+## Directory Layout
+
+```
+.
+├── backend/                  # Express + TypeScript + Drizzle ORM API
+│   ├── src/
+│   │   ├── db/               # PostgreSQL schema & database client
+│   │   ├── middleware/       # Auth, rate-limiter, error handling
+│   │   └── modules/          # Domain services (auth, agent, invoices)
+│   └── migrations/           # Drizzle SQL migration output files
+├── frontend/                 # React + TypeScript SPA Dashboard
+│   ├── src/
+│   │   ├── pages/            # View pages (Dashboard, Invoices, DLQ)
+│   │   └── components/       # Shared UI components
+├── ai-ml/                    # Python FastAPI service & agent scripts
+│   ├── api/                  # FastAPI router endpoints & middlewares
+│   └── src/                  # Agent core, safety filters, prompt registry
+└── implementation_plan/      # System vision documents & phase plans
 ```
 
-**2. Launching the Agent**
-```bash
-python main.py          # Starts the 24h background scheduler
-python main.py --now    # Forces an immediate sweep
-```
+---
 
+## Suresh Jakhar
