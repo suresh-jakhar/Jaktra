@@ -4,6 +4,7 @@ import { Modal } from "../ui/Modal";
 import { invoiceService } from "../../services/invoice";
 import { Upload, FileUp, XCircle, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import Papa from "papaparse";
+import { getErrorMessage } from "../../utils/error-utils";
 
 interface ImportInvoiceModalProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
       setImportResult(data);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.error || err.message || "Failed to import CSV.");
+      setError(getErrorMessage(err));
     },
   });
 

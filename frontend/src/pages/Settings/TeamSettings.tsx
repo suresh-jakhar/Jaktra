@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../..
 import { Loader2, UserPlus, ShieldAlert, MailX, Check, X, Shield, RefreshCw, Trash2 } from 'lucide-react';
 import type { TeamMember, TeamInvitation } from '../../types/api';
 import { z } from 'zod';
+import { getErrorMessage } from '../../utils/error-utils';
 
 export function TeamSettings() {
   const { user } = useAuth();
@@ -249,7 +250,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
       onClose();
     },
     onError: (err: any) => {
-      setError(err.response?.data?.error || 'Failed to send invitation');
+      setError(getErrorMessage(err));
     }
   });
 

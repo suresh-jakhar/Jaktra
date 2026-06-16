@@ -5,6 +5,7 @@ import { teamService } from '../services/team';
 import { Card, CardContent } from '../components/ui/Card';
 import { Loader2, MailCheck, AlertCircle, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
+import { getErrorMessage } from '../utils/error-utils';
 
 export function AcceptInvitation() {
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ export function AcceptInvitation() {
       }, 2000);
     },
     onError: (err: any) => {
-      setError(err.response?.data?.error || 'Failed to accept invitation. It may have expired or been revoked.');
+      setError(getErrorMessage(err));
     }
   });
 

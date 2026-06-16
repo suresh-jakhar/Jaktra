@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../ui/Modal";
 import { invoiceService } from "../../services/invoice";
 import { Loader2 } from "lucide-react";
+import { getErrorMessage } from "../../utils/error-utils";
 
 interface CreateInvoiceModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
       setError(null);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.error || err.message || "Failed to create invoice.");
+      setError(getErrorMessage(err));
     },
   });
 

@@ -4,6 +4,7 @@ import { Modal } from "../ui/Modal";
 import { invoiceService } from "../../services/invoice";
 import type { Invoice } from "../../types/api";
 import { Loader2 } from "lucide-react";
+import { getErrorMessage } from "../../utils/error-utils";
 
 interface EditInvoiceModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export function EditInvoiceModal({ isOpen, onClose, invoice }: EditInvoiceModalP
       setError(null);
     },
     onError: (err: any) => {
-      setError(err?.response?.data?.error || err.message || "Failed to update invoice.");
+      setError(getErrorMessage(err));
     },
   });
 

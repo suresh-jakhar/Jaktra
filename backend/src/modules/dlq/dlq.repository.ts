@@ -1,6 +1,8 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
 import type { DatabaseClient } from '../../db/index.js';
 import { dlqEntries, invoices } from '../../db/schema.js';
+import { mapErrorToDisplayMessage } from '../../shared/utils/error-mapper.js';
+import { NotFoundError } from '../../shared/errors/index.js';
 
 export class DlqRepository {
   constructor(private readonly db: DatabaseClient) {}
@@ -13,8 +15,10 @@ export class DlqRepository {
       .limit(1);
 
     if (invoice.length === 0) {
-      throw new Error('Invoice not found or does not belong to this tenant');
+      throw new NotFoundError('Invoice not found or does not belong to this tenant');
     }
+
+    const displayError = mapErrorToDisplayMessage(errorMsg);
 
     return await this.db
       .insert(dlqEntries)
@@ -23,6 +27,8 @@ export class DlqRepository {
         tenantId,
         consecutiveFailures: 1,
         lastError: errorMsg,
+        lastErrorDisplay: displayError,
+        lastErrorTechnical: errorMsg,
         firstFailure: new Date(),
         lastFailure: new Date(),
       })
@@ -31,6 +37,8 @@ export class DlqRepository {
         set: {
           consecutiveFailures: sql`${dlqEntries.consecutiveFailures} + 1`,
           lastError: errorMsg,
+          lastErrorDisplay: displayError,
+          lastErrorTechnical: errorMsg,
           lastFailure: new Date(),
         },
       })
@@ -45,7 +53,7 @@ export class DlqRepository {
       .limit(1);
 
     if (invoice.length === 0) {
-      throw new Error('Invoice not found or does not belong to this tenant');
+      throw new NotFoundError('Invoice not found or does not belong to this tenant');
     }
 
     return await this.db
@@ -60,6 +68,8 @@ export class DlqRepository {
         invoiceId: dlqEntries.invoiceId,
         consecutiveFailures: dlqEntries.consecutiveFailures,
         lastError: dlqEntries.lastError,
+        lastErrorDisplay: dlqEntries.lastErrorDisplay,
+        lastErrorTechnical: dlqEntries.lastErrorTechnical,
         firstFailure: dlqEntries.firstFailure,
         lastFailure: dlqEntries.lastFailure,
         clientName: invoices.clientName,
@@ -70,7 +80,6 @@ export class DlqRepository {
       .where(eq(dlqEntries.tenantId, tenantId))
       .orderBy(desc(dlqEntries.consecutiveFailures), desc(dlqEntries.lastFailure));
   }
-
 
   async getStats(tenantId: string) {
     const result = await this.db

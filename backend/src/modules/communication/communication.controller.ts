@@ -1,11 +1,11 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import {
   CommunicationService,
-  CommunicationError,
   createCommunicationSchema,
 } from './communication.service.js';
 import type { AuthenticatedRequest } from '../../shared/types/auth.js';
 import { z } from 'zod';
+import { ValidationError } from '../../shared/errors/index.js';
 
 const SettingsSchema = z.object({
   senderName: z.string().min(1),
@@ -21,25 +21,21 @@ const TestMessageSchema = z.object({
 export class CommunicationController {
   constructor(private communicationService: CommunicationService) {}
 
-  listByInvoice = async (req: Request, res: Response): Promise<void> => {
+  listByInvoice = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const invoiceId = req.params.id as string;
       const records = await this.communicationService.listByInvoice(invoiceId, tenantId);
       res.status(200).json(records);
     } catch (err: unknown) {
-      if (err instanceof CommunicationError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      res.status(500).json({ error: 'Internal server error' });
+      next(err);
     }
   };
 
-  create = async (req: Request, res: Response): Promise<void> => {
+  create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const parsed = createCommunicationSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.format() });
+      next(new ValidationError('Validation failed', JSON.stringify(parsed.error.format())));
       return;
     }
 
@@ -48,17 +44,11 @@ export class CommunicationController {
       const comm = await this.communicationService.create(parsed.data, tenantId);
       res.status(201).json(comm);
     } catch (err: unknown) {
-      if (err instanceof CommunicationError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      res.status(500).json({ error: 'Internal server error' });
+      next(err);
     }
   };
 
-  // --- Provider Settings ---
-
-  getSettings = async (req: Request, res: Response): Promise<void> => {
+  getSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authReq = req as AuthenticatedRequest;
       const tenantId = authReq.user.tenantId;
@@ -66,36 +56,38 @@ export class CommunicationController {
       const settings = await this.communicationService.getSettings(tenantId);
       res.status(200).json(settings || {});
     } catch (err: unknown) {
-      res.status(500).json({ error: { message: 'Failed to fetch communication settings' } });
+      next(err);
     }
   };
 
-  updateSettings = async (req: Request, res: Response): Promise<any> => {
+  updateSettings = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const authReq = req as AuthenticatedRequest;
       const tenantId = authReq.user.tenantId;
       
       const parsed = SettingsSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.format() });
+        next(new ValidationError('Validation failed', JSON.stringify(parsed.error.format())));
+        return;
       }
 
       const { senderName, senderEmail, replyTo, idempotencyWindowHours } = parsed.data;
       const settings = await this.communicationService.updateSettings(tenantId, senderName, senderEmail, replyTo, idempotencyWindowHours);
       res.status(200).json(settings);
     } catch (err: unknown) {
-      res.status(500).json({ error: { message: 'Failed to update communication settings' } });
+      next(err);
     }
   };
 
-  testCommunication = async (req: Request, res: Response): Promise<any> => {
+  testCommunication = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const authReq = req as AuthenticatedRequest;
       const tenantId = authReq.user.tenantId;
 
       const parsed = TestMessageSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.format() });
+        next(new ValidationError('Validation failed', JSON.stringify(parsed.error.format())));
+        return;
       }
 
       const { to } = parsed.data;
@@ -110,7 +102,7 @@ export class CommunicationController {
 
       res.status(200).json({ success: true, message: `Test message sent successfully` });
     } catch (err: unknown) {
-      res.status(500).json({ error: { message: (err as Error).message || 'Failed to send test message' } });
+      next(err);
     }
   };
 }

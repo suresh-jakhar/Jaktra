@@ -4,6 +4,7 @@ import { settingsService } from '../services/settings';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
 import { Loader2, Save, Building, Clock, DollarSign, Settings as SettingsIcon, Mail, Link as LinkIcon, Users, CreditCard } from 'lucide-react';
 import type { TenantSettings } from '../types/api';
+import { getErrorMessage } from '../utils/error-utils';
 import { useAuth } from '../contexts/AuthContext';
 import { TeamSettings } from './Settings/TeamSettings';
 import { IntegrationsTab } from './Settings/IntegrationsTab';
@@ -494,7 +495,7 @@ function SendGridConfig({ integration, testEmailMutation, testEmailStatus, userE
       setErrorMsg('');
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.error?.message || 'Failed to validate SendGrid key.');
+      setErrorMsg(getErrorMessage(err));
     }
   });
 
@@ -650,7 +651,7 @@ function SmtpConfigurator({ integration, userEmail }: any) {
       setErrorMsg('');
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.error?.message || 'Failed to validate SMTP settings.');
+      setErrorMsg(getErrorMessage(err));
     }
   });
 

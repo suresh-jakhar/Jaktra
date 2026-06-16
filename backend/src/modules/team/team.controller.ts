@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import type { TeamService } from './team.service.js';
 import type { TeamRepository } from './team.repository.js';
-import { AuthError } from '../../shared/errors/index.js';
+import { ValidationError } from '../../shared/errors/index.js';
 import type { AuthenticatedRequest } from '../../shared/types/auth.js';
 
 const inviteSchema = z.object({
@@ -31,7 +31,7 @@ export class TeamController {
     private readonly teamRepo: TeamRepository
   ) {}
 
-  listMembers = async (req: Request, res: Response): Promise<void> => {
+  listMembers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { tenantId } = (req as AuthenticatedRequest).user;
       const members = await this.teamRepo.listActiveMembers(tenantId);
@@ -40,130 +40,98 @@ export class TeamController {
         return safe;
       }));
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 
-  listInvitations = async (req: Request, res: Response): Promise<void> => {
+  listInvitations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { tenantId } = (req as AuthenticatedRequest).user;
       const invites = await this.teamRepo.listPendingInvitations(tenantId);
       res.status(200).json(invites.map(sanitizeInvitation));
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 
-  inviteMember = async (req: Request, res: Response): Promise<void> => {
+  inviteMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { tenantId, userId } = (req as AuthenticatedRequest).user;
       const parsed = inviteSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+        next(new ValidationError('Validation failed', JSON.stringify(parsed.error.issues)));
         return;
       }
 
       const invite = await this.teamService.inviteMember(tenantId, userId, parsed.data);
       res.status(201).json(sanitizeInvitation(invite));
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 
-  resendInvitation = async (req: Request, res: Response): Promise<void> => {
+  resendInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { tenantId } = (req as AuthenticatedRequest).user;
       const inviteId = req.params.id as string;
       const invite = await this.teamService.resendInvitation(tenantId, inviteId);
       res.status(200).json(sanitizeInvitation(invite));
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 
-  revokeInvitation = async (req: Request, res: Response): Promise<void> => {
+  revokeInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { tenantId } = (req as AuthenticatedRequest).user;
       const inviteId = req.params.id as string;
       await this.teamService.revokeInvitation(tenantId, inviteId);
       res.status(204).send();
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 
-  removeMember = async (req: Request, res: Response): Promise<void> => {
+  removeMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { tenantId } = (req as AuthenticatedRequest).user;
       const memberId = req.params.id as string;
       await this.teamService.removeMember(tenantId, memberId, ((req as AuthenticatedRequest).user as any).userId || ((req as AuthenticatedRequest).user as any).sub || 'unknown');
       res.status(204).send();
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 
-  updateMemberRole = async (req: Request, res: Response): Promise<void> => {
+  updateMemberRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { tenantId } = (req as AuthenticatedRequest).user;
       const memberId = req.params.id as string;
       const parsed = updateRoleSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+        next(new ValidationError('Validation failed', JSON.stringify(parsed.error.issues)));
         return;
       }
 
       await this.teamService.updateMemberRole(tenantId, memberId, parsed.data.role as 'admin' | 'manager' | 'viewer');
       res.status(200).json({ success: true });
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 
-  acceptInvitation = async (req: Request, res: Response): Promise<void> => {
+  acceptInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const parsed = acceptInviteSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+        next(new ValidationError('Validation failed', JSON.stringify(parsed.error.issues)));
         return;
       }
 
       await this.teamService.acceptInvitation(parsed.data.token, parsed.data.password, parsed.data.name);
       res.status(200).json({ success: true });
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        res.status(err.statusCode).json({ error: err.message });
-        return;
-      }
-      throw err;
+      next(err);
     }
   };
 }

@@ -1,84 +1,80 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import type { SettingsService } from './settings.service.js';
-
 import { updateSettingsSchema } from './settings.service.js';
+import { AuthError, NotFoundError, ValidationError } from '../../shared/errors/index.js';
 
 export class SettingsController {
   constructor(private settingsService: SettingsService) {}
 
-  getSettings = async (req: Request, res: Response): Promise<any> => {
+  getSettings = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const tenantId = res.locals.tenantId as string;
       if (!tenantId) {
-        return res.status(401).json({ error: { code: 'AuthError', message: 'Tenant ID required' } });
+        next(new AuthError('Tenant ID required', 401));
+        return;
       }
 
       const settings = await this.settingsService.getSettings(tenantId);
       if (!settings) {
-        return res.status(404).json({ error: { code: 'NotFoundError', message: 'Settings not found' } });
+        next(new NotFoundError('Settings not found'));
+        return;
       }
 
       res.json(settings);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
+      next(error);
     }
   };
 
-  updateSettings = async (req: Request, res: Response): Promise<any> => {
+  updateSettings = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const tenantId = res.locals.tenantId as string;
       if (!tenantId) {
-        return res.status(401).json({ error: { code: 'AuthError', message: 'Tenant ID required' } });
+        next(new AuthError('Tenant ID required', 401));
+        return;
       }
 
       const parseResult = updateSettingsSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({
-          error: {
-            code: 'ValidationError',
-            message: 'Invalid settings payload',
-            details: parseResult.error.format(),
-          },
-        });
+        next(new ValidationError('Invalid settings payload', JSON.stringify(parseResult.error.format())));
+        return;
       }
 
       const updated = await this.settingsService.updateSettings(tenantId, parseResult.data);
       res.json(updated);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
+      next(error);
     }
   };
 
-  getIntegrations = async (req: Request, res: Response): Promise<any> => {
+  getIntegrations = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const tenantId = res.locals.tenantId as string;
       if (!tenantId) {
-        return res.status(401).json({ error: { code: 'AuthError', message: 'Tenant ID required' } });
+        next(new AuthError('Tenant ID required', 401));
+        return;
       }
 
       const integrations = await this.settingsService.getIntegrations(tenantId);
       res.json(integrations);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
+      next(error);
     }
   };
 
-  rotateWebhookToken = async (req: Request, res: Response): Promise<any> => {
+  rotateWebhookToken = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     try {
       const tenantId = res.locals.tenantId as string;
       if (!tenantId) {
-        return res.status(401).json({ error: { code: 'AuthError', message: 'Tenant ID required' } });
+        next(new AuthError('Tenant ID required', 401));
+        return;
       }
 
       const updated = await this.settingsService.rotateWebhookToken(tenantId);
       res.json({ webhookToken: updated.webhookToken });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
+      next(error);
     }
   };
 }

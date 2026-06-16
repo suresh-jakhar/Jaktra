@@ -4,6 +4,7 @@ import { settingsService } from '../../services/settings';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../components/ui/Card';
 import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getErrorMessage } from '../../utils/error-utils';
 
 export function IntegrationsTab() {
   const { user } = useAuth();
@@ -31,16 +32,7 @@ export function IntegrationsTab() {
       setErrorMsg('');
     },
     onError: (err: any) => {
-      const errorData = err.response?.data?.error;
-      let msg = 'Failed to save Razorpay settings.';
-      if (typeof errorData === 'string') {
-        msg = errorData;
-      } else if (errorData?.message) {
-        msg = errorData.message;
-      } else if (err.response?.data?.message) {
-        msg = err.response.data.message;
-      }
-      setErrorMsg(msg);
+      setErrorMsg(getErrorMessage(err));
     }
   });
 

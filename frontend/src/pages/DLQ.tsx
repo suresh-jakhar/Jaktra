@@ -133,8 +133,8 @@ export function DLQ() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-slate-600">
-                          <div className="truncate max-w-[300px]" title={entry.lastError || 'Unknown Error'}>
-                            {entry.lastError || 'Unknown Error'}
+                          <div className="truncate max-w-[300px]" title={entry.lastErrorDisplay || entry.lastError || 'Unknown Error'}>
+                            {entry.lastErrorDisplay || entry.lastError || 'Unknown Error'}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-slate-500 whitespace-nowrap">

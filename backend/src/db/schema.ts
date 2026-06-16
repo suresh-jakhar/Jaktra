@@ -227,6 +227,8 @@ export const dlqEntries = pgTable('dlq_entries', {
     .references(() => tenants.id, { onDelete: 'cascade' }),
   consecutiveFailures: integer('consecutive_failures').notNull().default(1),
   lastError: text('last_error'),
+  lastErrorDisplay: text('last_error_display'),
+  lastErrorTechnical: text('last_error_technical'),
   firstFailure: timestamp('first_failure', { withTimezone: true })
     .notNull()
     .defaultNow(),

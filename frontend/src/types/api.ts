@@ -144,6 +144,8 @@ export interface DlqEntry {
   invoiceId: string;
   consecutiveFailures: number;
   lastError: string | null;
+  lastErrorDisplay?: string | null;
+  lastErrorTechnical?: string | null;
   firstFailure: string;
   lastFailure: string;
   clientName: string | null;

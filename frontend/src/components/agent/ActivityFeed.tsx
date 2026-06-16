@@ -4,6 +4,7 @@ import { eventService } from '../../services/event';
 import { RefreshCw, FileText, Send, Mail, AlertTriangle, CheckCircle2, MessageSquare, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { InvoiceEvent } from '../../types/api';
+import { getErrorMessage } from '../../utils/error-utils';
 
 interface ActivityFeedProps {
   isRunning: boolean;
@@ -122,7 +123,7 @@ export function ActivityFeed({ isRunning }: ActivityFeedProps) {
                       )}
                     </div>
                     {event.payload?.error && (
-                      <p className="text-xs text-red-600 mt-1">{event.payload.error}</p>
+                      <p className="text-xs text-red-600 mt-1">{getErrorMessage(event.payload.error)}</p>
                     )}
                     {event.payload?.subject && (
                       <p className="text-xs text-slate-600 mt-1 truncate max-w-[250px] sm:max-w-[400px]">

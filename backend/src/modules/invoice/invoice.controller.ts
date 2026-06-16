@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import type { InvoiceImportService, DuplicateStrategy } from './invoice.service.js';
 import type { InvoiceRepository } from './invoice.repository.js';
 import { logger } from '../../shared/logger.js';
@@ -10,6 +10,7 @@ import {
   listInvoicesSchema,
 } from './invoice.schema.js';
 import type { PaymentService } from '../payment/payment.service.js';
+import { ValidationError, NotFoundError } from '../../shared/errors/index.js';
 
 export class InvoiceController {
   constructor(
@@ -18,34 +19,38 @@ export class InvoiceController {
     private paymentService?: PaymentService
   ) {}
 
-  importFromCsv = async (req: Request, res: Response): Promise<void> => {
-    if (!req.file) {
-      res.status(400).json({ error: 'No CSV file provided. Use field name "file".' });
-      return;
+  importFromCsv = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.file) {
+        next(new ValidationError('No CSV file provided. Use field name "file".'));
+        return;
+      }
+
+      const tenantId = res.locals.tenantId as string;
+      const duplicateStrategy = (req.query.on_duplicate as DuplicateStrategy) || 'skip';
+
+      if (!['skip', 'update'].includes(duplicateStrategy)) {
+        next(new ValidationError('on_duplicate must be "skip" or "update"'));
+        return;
+      }
+
+      logger.info(`CSV import started for tenant ${tenantId} (${req.file.originalname}, ${req.file.size} bytes)`);
+
+      const result = await this.importService.importFromCsv(
+        req.file.buffer,
+        tenantId,
+        duplicateStrategy,
+      );
+
+      logger.info(`CSV import complete: ${result.imported} imported, ${result.updated} updated, ${result.skipped} skipped, ${result.errors.length} errors`);
+
+      res.status(200).json(result);
+    } catch (err: unknown) {
+      next(err);
     }
-
-    const tenantId = res.locals.tenantId as string;
-    const duplicateStrategy = (req.query.on_duplicate as DuplicateStrategy) || 'skip';
-
-    if (!['skip', 'update'].includes(duplicateStrategy)) {
-      res.status(400).json({ error: 'on_duplicate must be "skip" or "update"' });
-      return;
-    }
-
-    logger.info(`CSV import started for tenant ${tenantId} (${req.file.originalname}, ${req.file.size} bytes)`);
-
-    const result = await this.importService.importFromCsv(
-      req.file.buffer,
-      tenantId,
-      duplicateStrategy,
-    );
-
-    logger.info(`CSV import complete: ${result.imported} imported, ${result.updated} updated, ${result.skipped} skipped, ${result.errors.length} errors`);
-
-    res.status(200).json(result);
   };
 
-  create = async (req: Request, res: Response): Promise<void> => {
+  create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const data = createInvoiceSchema.parse(req.body);
@@ -61,11 +66,11 @@ export class InvoiceController {
         res.status(201).json(result.invoice);
       }
     } catch (error: any) {
-      res.status(400).json({ error: error.errors ? error.errors[0]?.message : error.message });
+      next(error);
     }
   };
 
-  createBulk = async (req: Request, res: Response): Promise<void> => {
+  createBulk = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const data = bulkCreateInvoiceSchema.parse(req.body);
@@ -77,11 +82,11 @@ export class InvoiceController {
       const created = await this.invoiceRepo.createMany(invoicesToInsert);
       res.status(201).json({ created: created.length, invoices: created });
     } catch (error: any) {
-      res.status(400).json({ error: error.errors ? error.errors[0]?.message : error.message });
+      next(error);
     }
   };
 
-  list = async (req: Request, res: Response): Promise<void> => {
+  list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const params = listInvoicesSchema.parse(req.query);
@@ -124,18 +129,18 @@ export class InvoiceController {
         }
       });
     } catch (error: any) {
-      res.status(400).json({ error: error.errors ? error.errors[0]?.message : error.message });
+      next(error);
     }
   };
 
-  getById = async (req: Request, res: Response): Promise<void> => {
+  getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const id = req.params.id as string;
       
       const invoice = await this.invoiceRepo.findById(id);
       if (!invoice || invoice.tenantId !== tenantId) {
-        res.status(404).json({ error: 'Invoice not found' });
+        next(new NotFoundError('Invoice not found'));
         return;
       }
 
@@ -163,11 +168,11 @@ export class InvoiceController {
         } : null
       });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      next(error);
     }
   };
 
-  update = async (req: Request, res: Response): Promise<void> => {
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const id = req.params.id as string;
@@ -175,7 +180,7 @@ export class InvoiceController {
 
       const invoice = await this.invoiceRepo.findById(id);
       if (!invoice || invoice.tenantId !== tenantId) {
-        res.status(404).json({ error: 'Invoice not found' });
+        next(new NotFoundError('Invoice not found'));
         return;
       }
 
@@ -186,7 +191,7 @@ export class InvoiceController {
 
       const updated = await this.invoiceRepo.update(id, tenantId, updatedData);
       if (!updated) {
-        res.status(404).json({ error: 'Invoice not found' });
+        next(new NotFoundError('Invoice not found'));
         return;
       }
       
@@ -200,11 +205,11 @@ export class InvoiceController {
 
       res.status(200).json(updated);
     } catch (error: any) {
-      res.status(400).json({ error: error.errors ? error.errors[0]?.message : error.message });
+      next(error);
     }
   };
 
-  updateStatus = async (req: Request, res: Response): Promise<void> => {
+  updateStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const id = req.params.id as string;
@@ -212,7 +217,7 @@ export class InvoiceController {
 
       const invoice = await this.invoiceRepo.findById(id);
       if (!invoice || invoice.tenantId !== tenantId) {
-        res.status(404).json({ error: 'Invoice not found' });
+        next(new NotFoundError('Invoice not found'));
         return;
       }
 
@@ -224,47 +229,47 @@ export class InvoiceController {
 
       res.status(200).json({ message: 'Status updated successfully' });
     } catch (error: any) {
-      res.status(400).json({ error: error.errors ? error.errors[0]?.message : error.message });
+      next(error);
     }
   };
 
-  generatePaymentLink = async (req: Request, res: Response): Promise<void> => {
+  generatePaymentLink = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const id = req.params.id as string;
 
       if (!this.paymentService) {
-        res.status(400).json({ error: 'Payment service not configured' });
+        next(new ValidationError('Payment service not configured'));
         return;
       }
 
       const invoice = await this.invoiceRepo.findById(id);
       if (!invoice || invoice.tenantId !== tenantId) {
-        res.status(404).json({ error: 'Invoice not found' });
+        next(new NotFoundError('Invoice not found'));
         return;
       }
 
       const paymentLink = await this.paymentService.getOrGeneratePaymentLink(tenantId, id, 'razorpay');
       res.status(200).json({ url: paymentLink });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      next(error);
     }
   };
 
-  delete = async (req: Request, res: Response): Promise<void> => {
+  delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = res.locals.tenantId as string;
       const id = req.params.id as string;
 
       const deleted = await this.invoiceRepo.softDelete(id, tenantId);
       if (!deleted) {
-        res.status(404).json({ error: 'Invoice not found' });
+        next(new NotFoundError('Invoice not found'));
         return;
       }
 
       res.status(200).json({ message: 'Invoice deleted successfully' });
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      next(error);
     }
   };
 }
