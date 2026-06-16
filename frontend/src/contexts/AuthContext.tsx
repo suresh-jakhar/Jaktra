@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import type { User } from "../types/api";
 import { authService } from "../services/auth";
+import { authEvents } from "../services/api";
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +17,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(() => !!localStorage.getItem("auth_token"));
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = () => {
+      setUser(null);
+      navigate("/login");
+    };
+    authEvents.addEventListener("unauthorized", handler);
+    return () => authEvents.removeEventListener("unauthorized", handler);
+  }, [navigate]);
+
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");

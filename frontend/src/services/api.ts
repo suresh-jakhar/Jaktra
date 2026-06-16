@@ -40,15 +40,18 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+export const authEvents = new EventTarget();
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("auth_token");
       if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
-        window.location.href = "/login";
+        authEvents.dispatchEvent(new Event("unauthorized"));
       }
     }
     return Promise.reject(error);
   }
 );
+
