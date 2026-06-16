@@ -157,6 +157,7 @@ export class PaymentService {
       delete sanitizedPayload.payload.payment.entity.contact;
     }
 
+    try {
       await this.repo.insertWebhookEvent({
         tenantId,
         provider,
@@ -166,6 +167,12 @@ export class PaymentService {
         status: 'pending',
         rawPayload: sanitizedPayload,
       });
+    } catch (e: any) {
+      if (e.code === '23505') {
+        return { status: 'ignored' };
+      }
+      throw e;
+    }
 
     let invoice = null;
     if (resolvedInvoiceId) {

@@ -6,17 +6,15 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
   
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.info(
-      JSON.stringify({
-        event: 'request_completed',
-        method: req.method,
-        path: req.originalUrl,
-        status: res.statusCode,
-        durationMs: duration,
-        ip: req.ip || req.socket?.remoteAddress,
-        userAgent: req.get('user-agent') || 'unknown'
-      })
-    );
+    logger.info({
+      event: 'request_completed',
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      durationMs: duration,
+      ip: req.ip || req.socket?.remoteAddress,
+      userAgent: req.get('user-agent') || 'unknown'
+    });
   });
   
   next();
