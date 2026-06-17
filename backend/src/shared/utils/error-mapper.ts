@@ -15,7 +15,7 @@ export function mapErrorToDisplayMessage(error: unknown): string {
   if (
     errMsg.includes('SMTP') || 
     errMsg.includes('smtp') || 
-    errMsg.includes('mail') || 
+    (errMsg.includes('mail') && !errMsg.toLowerCase().includes('email') && !errMsg.toLowerCase().includes('gmail')) || 
     errMsg.includes('Email sending failed') || 
     errMsg.includes('SendGrid')
   ) {
