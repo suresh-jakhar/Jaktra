@@ -19,8 +19,12 @@ export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
 export class SettingsService {
   constructor(private settingsRepo: SettingsRepository) {}
 
-  async getSettings(tenantId: string): Promise<TenantSettings | null> {
-    return this.settingsRepo.getSettings(tenantId);
+  async getSettings(tenantId: string): Promise<TenantSettings> {
+    let settings = await this.settingsRepo.getSettings(tenantId);
+    if (!settings) {
+      settings = await this.settingsRepo.createDefaultSettings(tenantId);
+    }
+    return settings;
   }
 
   async updateSettings(

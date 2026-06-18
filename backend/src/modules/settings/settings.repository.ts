@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import crypto from 'crypto';
 import type { DatabaseClient } from '../../db/index.js';
-import { tenantSettings, type TenantSettings } from '../../db/schema.js';
+import { tenantSettings, tenants, users, type TenantSettings } from '../../db/schema.js';
 
 export class SettingsRepository {
   constructor(private db: DatabaseClient) {}
@@ -45,5 +45,27 @@ export class SettingsRepository {
       .returning();
 
     return updated || null;
+  }
+
+  async createDefaultSettings(tenantId: string): Promise<TenantSettings> {
+    const tenant = await this.db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+    });
+    
+    const adminUser = await this.db.query.users.findFirst({
+      where: and(eq(users.tenantId, tenantId), eq(users.role, 'admin')),
+    });
+
+    const [newSettings] = await this.db
+      .insert(tenantSettings)
+      .values({
+        tenantId,
+        companyName: tenant?.name || 'Company',
+        senderName: adminUser?.name || 'Finance Team',
+        senderEmail: adminUser?.email || 'billing@example.com',
+      })
+      .returning();
+
+    return newSettings;
   }
 }

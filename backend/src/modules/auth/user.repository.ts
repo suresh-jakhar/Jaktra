@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import { users, tenants } from '../../db/index.js';
+import { users, tenants, tenantSettings } from '../../db/index.js';
 import type { DatabaseClient } from '../../db/index.js';
 import type { User, NewUser, Tenant, NewTenant } from '../../db/index.js';
 
@@ -73,6 +73,16 @@ export class UserRepository {
         })
         .returning();
       const newAdmin = insertedUsers[0]!;
+
+      // 3. Create default settings
+      await tx
+        .insert(tenantSettings)
+        .values({
+          tenantId: newTenant.id,
+          companyName: tenantData.name,
+          senderName: userData.name || 'Finance Team',
+          senderEmail: userData.email,
+        });
 
       return { tenant: newTenant, user: newAdmin };
     });
