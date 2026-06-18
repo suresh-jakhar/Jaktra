@@ -34,10 +34,11 @@ export class InvoiceController {
         return;
       }
 
-      logger.info(`CSV import started for tenant ${tenantId} (${req.file.originalname}, ${req.file.size} bytes)`);
+      logger.info(`File import started for tenant ${tenantId} (${req.file.originalname}, ${req.file.size} bytes)`);
 
-      const result = await this.importService.importFromCsv(
+      const result = await this.importService.importFromFile(
         req.file.buffer,
+        req.file.originalname,
         tenantId,
         duplicateStrategy,
       );

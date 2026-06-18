@@ -6,11 +6,19 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const storage = multer.memoryStorage();
 
 function csvFileFilter(_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) {
-  const allowedMimes = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
-  if (allowedMimes.includes(file.mimetype) || file.originalname.endsWith('.csv')) {
+  const allowedMimes = [
+    'text/csv',
+    'application/vnd.ms-excel',
+    'text/plain',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+  const extension = file.originalname.split('.').pop()?.toLowerCase();
+  const allowedExtensions = ['csv', 'xlsx', 'xls'];
+
+  if (allowedMimes.includes(file.mimetype) || (extension && allowedExtensions.includes(extension))) {
     cb(null, true);
   } else {
-    cb(new Error('Only CSV files are accepted'));
+    cb(new Error('Only CSV and Excel files are accepted'));
   }
 }
 

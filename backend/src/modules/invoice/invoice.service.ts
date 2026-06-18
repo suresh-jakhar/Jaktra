@@ -1,6 +1,6 @@
 import type { InvoiceRepository } from '../invoice/invoice.repository.js';
 import type { ParsedRow, RowError, CsvParseResult } from './csv-parser.service.js';
-import { parseCsvBuffer } from './csv-parser.service.js';
+import { parseFileBuffer } from './csv-parser.service.js';
 
 export type DuplicateStrategy = 'skip' | 'update';
 
@@ -14,12 +14,13 @@ export interface ImportResult {
 export class InvoiceImportService {
   constructor(private invoiceRepo: InvoiceRepository) {}
 
-  async importFromCsv(
+  async importFromFile(
     buffer: Buffer,
+    originalname: string,
     tenantId: string,
     duplicateStrategy: DuplicateStrategy = 'skip',
   ): Promise<ImportResult> {
-    const { valid, errors }: CsvParseResult = parseCsvBuffer(buffer);
+    const { valid, errors }: CsvParseResult = parseFileBuffer(buffer, originalname);
 
     let imported = 0;
     let updated = 0;

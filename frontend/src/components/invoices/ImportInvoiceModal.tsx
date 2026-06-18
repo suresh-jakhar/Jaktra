@@ -54,28 +54,37 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
   });
 
   const processFile = (selectedFile: File) => {
-    if (!selectedFile.name.endsWith('.csv')) {
-      setError("Only .csv files are supported.");
+    const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['csv', 'xlsx', 'xls'];
+
+    if (!ext || !allowedExtensions.includes(ext)) {
+      setError("Only CSV and Excel (.xlsx, .xls) files are supported.");
       return;
     }
     setError(null);
     setFile(selectedFile);
 
-    // Preview
-    Papa.parse(selectedFile, {
-      header: true,
-      skipEmptyLines: true,
-      preview: 5,
-      complete: (results) => {
-        if (results.meta.fields) {
-          setPreviewHeaders(results.meta.fields);
+    if (ext === 'csv') {
+      // Preview CSV
+      Papa.parse(selectedFile, {
+        header: true,
+        skipEmptyLines: true,
+        preview: 5,
+        complete: (results) => {
+          if (results.meta.fields) {
+            setPreviewHeaders(results.meta.fields);
+          }
+          setPreview(results.data);
+        },
+        error: (err) => {
+          setError("Failed to parse CSV preview: " + err.message);
         }
-        setPreview(results.data);
-      },
-      error: (err) => {
-        setError("Failed to parse CSV preview: " + err.message);
-      }
-    });
+      });
+    } else {
+      // Excel file, skip client-side preview to avoid heavy package bundling
+      setPreview([]);
+      setPreviewHeaders([]);
+    }
   };
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -112,7 +121,7 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
       isOpen={isOpen}
       onClose={handleClose}
       title="Import Invoices"
-      description={!importResult ? "Upload a CSV file containing your invoices." : undefined}
+      description={!importResult ? "Upload a CSV or Excel file containing your invoices." : undefined}
       className="max-w-2xl"
     >
       {importResult ? (
@@ -121,7 +130,7 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
             <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
             <h3 className="text-xl font-bold mb-2">Import Complete</h3>
             <p className="text-green-700">
-              Successfully processed your CSV file.
+              Successfully processed your invoice file.
             </p>
           </div>
 
@@ -189,7 +198,7 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
               <input
                 id="csv-upload"
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 className="hidden"
                 onChange={handleFileChange}
               />
@@ -197,7 +206,7 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
                 <Upload className="w-6 h-6" />
               </div>
               <p className="text-sm font-medium text-slate-900 mb-1">Click to upload or drag and drop</p>
-              <p className="text-xs text-slate-500">CSV files only. Required columns: invoice_no, client_name, amount, due_date, contact_email</p>
+              <p className="text-xs text-slate-500">CSV and Excel files only. Required columns: invoice_no, client_name, invoice_amount, due_date, contact_email</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -219,6 +228,12 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
+
+              {preview.length === 0 && file && (
+                <div className="p-3 bg-blue-50 text-blue-800 border border-blue-100 rounded-md text-xs">
+                  <strong>Note:</strong> Client-side preview is not available for Excel spreadsheets, but the file is loaded and ready to upload and process.
+                </div>
+              )}
 
               {preview.length > 0 && (
                 <div className="border border-slate-200 rounded-md overflow-hidden">
