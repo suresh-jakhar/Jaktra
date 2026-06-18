@@ -7,18 +7,22 @@ export class SettingsRepository {
   constructor(private db: DatabaseClient) {}
 
   async getSettings(tenantId: string): Promise<TenantSettings | null> {
-    const settings = await this.db.query.tenantSettings.findFirst({
-      where: eq(tenantSettings.tenantId, tenantId),
-    });
+    const result = await this.db
+      .select()
+      .from(tenantSettings)
+      .where(eq(tenantSettings.tenantId, tenantId))
+      .limit(1);
 
-    return settings || null;
+    return result[0] || null;
   }
 
   async findByWebhookToken(webhookToken: string): Promise<TenantSettings | null> {
-    const settings = await this.db.query.tenantSettings.findFirst({
-      where: eq(tenantSettings.webhookToken, webhookToken),
-    });
-    return settings || null;
+    const result = await this.db
+      .select()
+      .from(tenantSettings)
+      .where(eq(tenantSettings.webhookToken, webhookToken))
+      .limit(1);
+    return result[0] || null;
   }
 
   async rotateWebhookToken(tenantId: string): Promise<TenantSettings> {
@@ -48,13 +52,19 @@ export class SettingsRepository {
   }
 
   async createDefaultSettings(tenantId: string): Promise<TenantSettings> {
-    const tenant = await this.db.query.tenants.findFirst({
-      where: eq(tenants.id, tenantId),
-    });
+    const tenantResult = await this.db
+      .select()
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1);
+    const tenant = tenantResult[0];
     
-    const adminUser = await this.db.query.users.findFirst({
-      where: and(eq(users.tenantId, tenantId), eq(users.role, 'admin')),
-    });
+    const adminResult = await this.db
+      .select()
+      .from(users)
+      .where(and(eq(users.tenantId, tenantId), eq(users.role, 'admin')))
+      .limit(1);
+    const adminUser = adminResult[0];
 
     const [newSettings] = await this.db
       .insert(tenantSettings)
