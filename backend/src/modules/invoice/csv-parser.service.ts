@@ -2,6 +2,154 @@ import Papa from 'papaparse';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
 
+function canonicalizeKey(key: string): string {
+  const clean = key.trim().toLowerCase();
+  const cleanUnderscore = clean.replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  
+  // 1. Fast exact/prefix checks for standard terms
+  if (['invoiceno', 'invoice_no', 'invoicenumber', 'invoice_number', 'invno', 'inv_no', 'invnumber', 'inv_number', 'invoiceid', 'invoice_id', 'no', 'number', '#', 'id'].includes(cleanUnderscore)) {
+    return 'invoice_no';
+  }
+  if (['clientname', 'client_name', 'customername', 'customer_name', 'client', 'customer', 'name', 'clientcompany', 'company'].includes(cleanUnderscore)) {
+    return 'client_name';
+  }
+  if (['invoiceamount', 'invoice_amount', 'amount', 'total', 'price', 'balance', 'val', 'value', 'cost', 'sum'].includes(cleanUnderscore)) {
+    return 'invoice_amount';
+  }
+  if (['duedate', 'due_date', 'due', 'deadline', 'paymentdue', 'payment_due'].includes(cleanUnderscore)) {
+    return 'due_date';
+  }
+  if (['contactemail', 'contact_email', 'email', 'emailaddress', 'email_address', 'mail', 'contact'].includes(cleanUnderscore)) {
+    return 'contact_email';
+  }
+  if (['followupcount', 'followup_count', 'followups', 'reminders', 'remindercount', 'reminder_count', 'followupno', 'followup_no'].includes(cleanUnderscore)) {
+    return 'followup_count';
+  }
+  if (['paymentstatus', 'payment_status', 'status', 'state'].includes(cleanUnderscore)) {
+    return 'payment_status';
+  }
+  if (['lastfollowupdate', 'last_followup_date', 'lastfollowup', 'last_followup', 'latestfollowup', 'latest_followup'].includes(cleanUnderscore)) {
+    return 'last_followup_date';
+  }
+
+  // 2. Token overlap fallback for conversational/complex names
+  const cleanTokens = clean.replace(/[^a-z0-9\s_]/g, ' ').split(/[\s_]+/).filter(Boolean);
+  if (cleanTokens.length === 0) return cleanUnderscore;
+
+  const concepts: Record<string, string[]> = {
+    invoice_no: ['invoice', 'inv', 'num', 'number', 'no', 'id', 'code'],
+    client_name: ['client', 'customer', 'name', 'buyer', 'company', 'firm', 'org', 'organization'],
+    invoice_amount: ['amount', 'price', 'total', 'value', 'val', 'cost', 'balance', 'usd', 'inr', 'sum'],
+    due_date: ['due', 'date', 'timeline', 'limit', 'deadline'],
+    contact_email: ['email', 'mail', 'contact', 'address'],
+    followup_count: ['followup', 'followups', 'remind', 'reminders', 'count', 'number', 'frequency', 'sent'],
+    payment_status: ['status', 'state', 'payment', 'paid'],
+    last_followup_date: ['last', 'recent', 'latest', 'followup', 'remind', 'date']
+  };
+
+  let bestKey = '';
+  let highestScore = 0;
+
+  for (const [targetKey, targetTokens] of Object.entries(concepts)) {
+    let score = 0;
+    
+    for (const token of cleanTokens) {
+      if (targetTokens.includes(token)) {
+        score += 1.0;
+      } else {
+        for (const targetToken of targetTokens) {
+          if (token.includes(targetToken) || targetToken.includes(token)) {
+            score += 0.4;
+          }
+        }
+      }
+    }
+    
+    if (targetKey === 'last_followup_date') {
+      const hasLast = cleanTokens.some(t => t.includes('last') || t.includes('recent'));
+      const hasFollow = cleanTokens.some(t => t.includes('follow') || t.includes('remind'));
+      const hasDate = cleanTokens.some(t => t.includes('date'));
+      if (hasLast && hasFollow) score += 1.5;
+      if (hasLast && hasDate) score += 1.0;
+    }
+    
+    if (targetKey === 'due_date') {
+      const hasDue = cleanTokens.some(t => t.includes('due') || t.includes('deadline'));
+      const hasDate = cleanTokens.some(t => t.includes('date'));
+      if (hasDue && hasDate) score += 1.5;
+      if (cleanTokens.some(t => t.includes('last') || t.includes('recent') || t.includes('follow') || t.includes('remind'))) {
+        score -= 1.0;
+      }
+    }
+
+    if (targetKey === 'followup_count') {
+      const hasFollow = cleanTokens.some(t => t.includes('follow') || t.includes('remind'));
+      const hasCount = cleanTokens.some(t => t.includes('count') || t.includes('no') || t.includes('num'));
+      if (hasFollow && hasCount) score += 1.5;
+      if (cleanTokens.some(t => t.includes('date') || t.includes('last') || t.includes('recent'))) {
+        score -= 1.0;
+      }
+    }
+
+    const normalizedScore = score / Math.sqrt(targetTokens.length * cleanTokens.length);
+
+    if (normalizedScore > highestScore) {
+      highestScore = normalizedScore;
+      bestKey = targetKey;
+    }
+  }
+
+  if (highestScore > 0.25) {
+    return bestKey;
+  }
+
+  return cleanUnderscore;
+}
+
+function parseDateString(val: any): string | null {
+  const formatDate = (date: Date): string | null => {
+    if (isNaN(date.getTime())) return null;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  if (!val) return null;
+  if (val instanceof Date) return formatDate(val);
+  if (typeof val === 'number') {
+    const date = new Date((val - 25569) * 86400 * 1000);
+    return formatDate(date);
+  }
+  
+  const str = String(val).trim();
+  if (str === '') return null;
+  
+  // Try custom parts parsing (DD-MM-YYYY or YYYY-MM-DD) first to avoid incorrect parsing by Native JS parser
+  const parts = str.split(/[-/]/);
+  if (parts.length === 3) {
+    const p0 = parseInt(parts[0], 10);
+    const p1 = parseInt(parts[1], 10);
+    const p2 = parseInt(parts[2], 10);
+    
+    if (p2 > 1000) {
+      const date = new Date(p2, p1 - 1, p0);
+      return formatDate(date);
+    }
+    if (p0 > 1000) {
+      const date = new Date(p0, p1 - 1, p2);
+      return formatDate(date);
+    }
+  }
+
+  const parsed = Date.parse(str);
+  if (!isNaN(parsed)) {
+    return formatDate(new Date(parsed));
+  }
+  
+  return null;
+}
+
 const csvRowSchema = z.object({
   invoice_no: z.preprocess(
     (val) => (val !== undefined && val !== null ? String(val).trim() : ''),
@@ -23,15 +171,8 @@ const csvRowSchema = z.object({
       .transform((val) => val.toFixed(2))
   ),
   due_date: z.preprocess(
-    (val) => {
-      if (val instanceof Date) return val.toISOString();
-      if (typeof val === 'number') {
-        const date = new Date((val - 25569) * 86400 * 1000);
-        return isNaN(date.getTime()) ? '' : date.toISOString();
-      }
-      return val !== undefined && val !== null ? String(val).trim() : '';
-    },
-    z.string().refine((val) => !isNaN(Date.parse(val)), {
+    (val) => parseDateString(val) ?? '',
+    z.string().refine((val) => val !== '', {
       message: 'Invalid date format',
     })
   ),
@@ -63,14 +204,8 @@ const csvRowSchema = z.object({
   ),
   last_followup_date: z.preprocess(
     (val) => {
-      if (val === undefined || val === null || val === '') return undefined;
-      if (val instanceof Date) return val;
-      if (typeof val === 'number') {
-        const date = new Date((val - 25569) * 86400 * 1000);
-        return isNaN(date.getTime()) ? undefined : date;
-      }
-      const parsed = Date.parse(String(val).trim());
-      return isNaN(parsed) ? undefined : new Date(parsed);
+      const iso = parseDateString(val);
+      return iso ? new Date(iso) : undefined;
     },
     z.instanceof(Date).optional()
   ),
@@ -106,7 +241,7 @@ export function parseCsvBuffer(buffer: Buffer): CsvParseResult {
   const parsed = Papa.parse<CsvRowInput>(content, {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (header) => header.trim().toLowerCase(),
+    transformHeader: (header) => canonicalizeKey(header),
   });
 
   const valid: ParsedRow[] = [];
@@ -166,7 +301,7 @@ export function parseExcelBuffer(buffer: Buffer): CsvParseResult {
     const rawRow = rawData[i]!;
     const normalizedRow: Record<string, any> = {};
     for (const key of Object.keys(rawRow)) {
-      const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, '_');
+      const normalizedKey = canonicalizeKey(key);
       normalizedRow[normalizedKey] = rawRow[key];
     }
 
