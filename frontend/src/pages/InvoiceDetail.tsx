@@ -11,6 +11,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { EditInvoiceModal } from "../components/invoices/EditInvoiceModal";
 import { CommunicationList } from "../components/invoices/CommunicationList";
 import { CommunicationStats } from "../components/invoices/CommunicationStats";
+import { getErrorMessage } from "../utils/error-utils";
 import { 
   ArrowLeft, 
   Mail, 
@@ -44,6 +45,7 @@ export function InvoiceDetail() {
   const queryClient = useQueryClient();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'timeline' | 'emails'>('timeline');
+  const [error, setError] = useState<string | null>(null);
 
   const { data: invoice, isLoading: isInvoiceLoading } = useQuery({
     queryKey: ["invoice", id],
@@ -65,6 +67,10 @@ export function InvoiceDetail() {
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => invoiceService.updateInvoiceStatus(id!, status),
+    onMutate: () => setError(null),
+    onError: (err: any) => {
+      setError(getErrorMessage(err));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoice-timeline", id] });
@@ -76,6 +82,10 @@ export function InvoiceDetail() {
 
   const agentMutation = useMutation({
     mutationFn: () => agentService.runAgentForInvoice(id!),
+    onMutate: () => setError(null),
+    onError: (err: any) => {
+      setError(getErrorMessage(err));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoice-timeline", id] });
@@ -86,6 +96,10 @@ export function InvoiceDetail() {
 
   const generateLinkMutation = useMutation({
     mutationFn: () => invoiceService.generatePaymentLink(id!),
+    onMutate: () => setError(null),
+    onError: (err: any) => {
+      setError(getErrorMessage(err));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
     }
@@ -152,6 +166,25 @@ export function InvoiceDetail() {
           Back to Invoices
         </Link>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-4 flex items-start gap-3 relative shadow-sm">
+          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-semibold text-sm">Action Failed</h3>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+          <button 
+            onClick={() => setError(null)}
+            className="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors focus:outline-none"
+          >
+            <span className="sr-only">Close</span>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">

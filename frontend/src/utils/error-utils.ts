@@ -7,6 +7,11 @@ export function getErrorMessage(error: unknown): string {
     const data = error.response?.data;
     if (data?.error?.message) {
       message = data.error.message;
+      if (data.error.details && (message === 'An unexpected error occurred' || message === 'Internal Server Error')) {
+        message = data.error.details;
+      }
+    } else if (data?.error?.details) {
+      message = data.error.details;
     } else if (data?.message) {
       message = data.message;
     } else {
