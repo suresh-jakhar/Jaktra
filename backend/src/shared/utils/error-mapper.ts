@@ -1,10 +1,16 @@
 import { ZodError } from 'zod';
+import { AimlServiceError } from '../errors/index.js';
 
 export function mapErrorToDisplayMessage(error: unknown): string {
   if (!error) return 'An unexpected error occurred';
 
   const errString = String(error);
   const errMsg = error instanceof Error ? error.message : errString;
+
+  // AimlServiceError — use its display message directly
+  if (error instanceof AimlServiceError) {
+    return error.displayMessage;
+  }
 
   // AI-ML Circuit breaker
   if (errMsg.includes('circuit breaker is open') || errMsg.includes('circuit breaker open') || errMsg.includes('CircuitBreakerOpen')) {

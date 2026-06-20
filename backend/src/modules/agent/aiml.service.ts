@@ -14,6 +14,7 @@ export interface FollowupRequest {
   clientName: string;
   contactEmail: string;
   invoiceAmount: string;
+  currency?: string;
   dueDate: string;
   daysOverdue: number;
   urgencyTier: string;
@@ -22,12 +23,26 @@ export interface FollowupRequest {
   paymentLink?: string;
 }
 
+/** Shape returned by the Python AI-ML /followup endpoint */
 export interface FollowupResponse {
   invoiceId: string;
+  channel: string;
   emailGenerated: boolean;
   emailSent: boolean;
   subject?: string;
   bodyPreview?: string;
+  error?: string;
+}
+
+/** Raw snake_case shape returned by the Python service */
+interface RawFollowupResponse {
+  invoice_id: string;
+  channel: string;
+  content?: {
+    subject?: string;
+    plain_body?: string;
+    html_body?: string;
+  };
   error?: string;
 }
 
@@ -85,7 +100,30 @@ export class AimlService {
   }
 
   async triggerFollowup(invoice: FollowupRequest): Promise<FollowupResponse> {
-    return this.request<FollowupResponse>('POST', '/followup', invoice);
+    const payload = {
+      invoice_id: invoice.invoiceId,
+      invoice_no: invoice.invoiceNo,
+      client_name: invoice.clientName,
+      contact_email: invoice.contactEmail,
+      invoice_amount: invoice.invoiceAmount,
+      currency: invoice.currency ?? 'INR',
+      due_date: invoice.dueDate,
+      days_overdue: invoice.daysOverdue,
+      urgency_tier: invoice.urgencyTier,
+      followup_count: invoice.followupCount,
+      channel: invoice.channel,
+      payment_link: invoice.paymentLink,
+    };
+    const raw = await this.request<RawFollowupResponse>('POST', '/followup', payload);
+    return {
+      invoiceId: raw.invoice_id,
+      channel: raw.channel,
+      emailGenerated: !!(raw.content?.subject || raw.content?.plain_body),
+      emailSent: false, // generation only — actual sending happens via email provider
+      subject: raw.content?.subject,
+      bodyPreview: raw.content?.plain_body?.slice(0, 300),
+      error: raw.error,
+    };
   }
 
   async triggerBatchRun(request: BatchRunRequest): Promise<BatchRunResponse> {
