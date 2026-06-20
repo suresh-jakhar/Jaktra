@@ -21,7 +21,8 @@ export function validateQuery(schema: ZodSchema) {
       next(parsed.error);
       return;
     }
-    req.query = parsed.data as any;
+    Object.keys(req.query).forEach((k) => delete (req.query as any)[k]);
+    Object.assign(req.query, parsed.data);
     next();
   };
 }
