@@ -9,7 +9,7 @@ import { CommunicationService } from '../communication/communication.service.js'
 import { CommunicationRepository } from '../communication/communication.repository.js';
 import { PaymentService } from '../payment/payment.service.js';
 import { logger } from '../../shared/logger.js';
-import { NotFoundError } from '../../shared/errors/index.js';
+import { NotFoundError, CommunicationError } from '../../shared/errors/index.js';
 import { mapErrorToDisplayMessage } from '../../shared/utils/error-mapper.js';
 
 export class AgentService {
@@ -32,7 +32,23 @@ export class AgentService {
     return this.activeRuns.size > 0;
   }
 
+  /**
+   * Verify the tenant has a configured email provider before starting any work.
+   * Throws immediately so no AI-ML content is generated for nothing.
+   */
+  private async assertEmailConfigured(tenantId: string): Promise<void> {
+    const settings = await this.communicationRepo.getSettings(tenantId);
+    if (!settings?.defaultEmailProvider || !settings?.senderEmail) {
+      throw new CommunicationError(
+        'Email is not set up. Please configure a sender email and connect SendGrid or SMTP in Settings → Integrations before running the agent.',
+        400
+      );
+    }
+  }
+
   async triggerRun(tenantId: string) {
+    await this.assertEmailConfigured(tenantId);
+
     const invoices = await this.invoiceRepo.findByTenant(tenantId);
     const triaged = this.triageService.triageInvoices(invoices);
 
@@ -251,6 +267,8 @@ export class AgentService {
   }
 
   async triggerSingleInvoice(invoiceId: string, tenantId: string) {
+    await this.assertEmailConfigured(tenantId);
+
     const invoice = await this.invoiceRepo.findById(invoiceId);
     if (!invoice || invoice.tenantId !== tenantId) {
       throw new NotFoundError('Invoice not found');

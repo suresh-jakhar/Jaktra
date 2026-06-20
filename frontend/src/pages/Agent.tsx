@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { agentService } from '../services/agent';
+import { settingsService } from '../services/settings';
 import { RunList } from '../components/agent/RunList';
 import { ActivityFeed } from '../components/agent/ActivityFeed';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
-import { Bot, Play, AlertCircle, Loader2 } from 'lucide-react';
+import { Bot, Play, AlertCircle, Loader2, AlertTriangle, Settings } from 'lucide-react';
 
 import { getErrorMessage } from '../utils/error-utils';
 
@@ -15,8 +17,16 @@ export function Agent() {
   const { data: runsResponse, isLoading } = useQuery({
     queryKey: ['agent-runs'],
     queryFn: agentService.getRuns,
-    refetchInterval: 10000, // Poll every 10 seconds for updates
+    refetchInterval: 10000,
   });
+
+  const { data: settings } = useQuery({
+    queryKey: ['tenant-settings'],
+    queryFn: settingsService.getSettings,
+  });
+
+  // Email is ready only when both a provider and a sender email are configured
+  const emailReady = !!(settings?.defaultEmailProvider && settings?.senderEmail);
 
   const runMutation = useMutation({
     mutationFn: () => agentService.runAgent(),
@@ -47,8 +57,9 @@ export function Agent() {
           {user?.role !== 'viewer' && (
             <button
               onClick={handleRunAgent}
-              disabled={isRunning}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 disabled:opacity-50 shadow-sm"
+              disabled={isRunning || !emailReady}
+              title={!emailReady ? 'Email is not configured. Set up an email provider in Settings first.' : undefined}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {isRunning ? (
                 <>
@@ -65,6 +76,28 @@ export function Agent() {
           )}
         </div>
       </div>
+
+      {/* Email not configured warning — shown before the user tries anything */}
+      {settings && !emailReady && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-amber-900 text-sm">Email not configured</h4>
+            <p className="text-amber-800 text-sm mt-1">
+              The agent cannot run because no email provider is set up.
+              Connect <strong>SendGrid</strong> or <strong>SMTP</strong> and set a sender email address —
+              otherwise follow-up emails would be generated but never delivered.
+            </p>
+          </div>
+          <Link
+            to="/settings"
+            className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 border border-amber-300 bg-white hover:bg-amber-50 rounded-md px-3 py-1.5 transition-colors whitespace-nowrap"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Go to Settings
+          </Link>
+        </div>
+      )}
 
       {runMutation.isError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start">
@@ -103,7 +136,7 @@ export function Agent() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <p className="text-sm text-slate-500 mb-1">Total Invoices Processed (All Time)</p>
                 <p className="text-2xl font-bold text-slate-900">
