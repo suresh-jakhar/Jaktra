@@ -5,6 +5,8 @@ import { TriageService, type TriagedInvoice, type UrgencyTier } from './triage.s
 import { EventService } from '../event/event.service.js';
 import { DlqService } from '../dlq/dlq.service.js';
 import { IdempotencyService } from '../../modules/communication/services/idempotency.service.js';
+import { CommunicationService } from '../communication/communication.service.js';
+import { CommunicationRepository } from '../communication/communication.repository.js';
 import { PaymentService } from '../payment/payment.service.js';
 import { logger } from '../../shared/logger.js';
 import { NotFoundError } from '../../shared/errors/index.js';
@@ -21,7 +23,9 @@ export class AgentService {
     private eventService: EventService,
     private dlqService: DlqService,
     private idempotencyService: IdempotencyService,
-    private paymentService: PaymentService
+    private paymentService: PaymentService,
+    private communicationService: CommunicationService,
+    private communicationRepo: CommunicationRepository
   ) {}
 
   hasActiveRuns(): boolean {
@@ -113,6 +117,7 @@ export class AgentService {
             clientName: inv.clientName,
             contactEmail: inv.contactEmail,
             invoiceAmount: inv.invoiceAmount.toString(),
+            currency: (inv as any).currency ?? 'INR',
             dueDate: inv.dueDate,
             daysOverdue: inv.daysOverdue,
             urgencyTier: inv.computedTier,
@@ -121,21 +126,93 @@ export class AgentService {
             paymentLink,
           });
 
-          if (resp.emailSent) emailsSent++;
-          if (resp.error) errorsCount++;
+          // Generation failed — record in DLQ and move on
+          if (resp.error || !resp.emailGenerated) {
+            errorsCount++;
+            await this.communicationRepo.create({
+              tenantId,
+              invoiceId: inv.id,
+              channel: channel as 'email' | 'sms' | 'whatsapp',
+              subject: resp.subject ?? null,
+              body: resp.bodyPreview ?? null,
+              status: 'failed',
+              sentAt: null,
+              error: resp.error ?? 'Generation produced no content',
+            });
+            await this.eventService.emitEvent(
+              inv.id,
+              'email_generated',
+              { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel, runId },
+              'ai-agent',
+              tenantId
+            );
+            await this.dlqService.recordFailure(inv.id, tenantId, resp.error ?? 'Generation produced no content').catch(() => {});
+            continue;
+          }
 
-          await this.eventService.emitEvent(
-            inv.id,
-            resp.emailSent ? 'email_sent' : 'email_generated',
-            { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel, runId },
-            'ai-agent',
-            tenantId
-          );
+          // Generation succeeded — now actually send the email
+          let sendError: string | undefined;
+          try {
+            await this.communicationService.send({
+              tenantId,
+              to: inv.contactEmail,
+              subject: resp.subject!,
+              html: resp.htmlBody ?? resp.bodyPreview ?? '',
+              channel: channel as 'email',
+            });
+          } catch (sendErr: any) {
+            sendError = sendErr?.message ?? String(sendErr);
+            logger.warn(`Email send failed for invoice ${inv.id}: ${sendError}`);
+          }
 
-          if (!resp.error) {
+          const now = new Date();
+          if (!sendError) {
+            // Record successful communication
+            await this.communicationRepo.create({
+              tenantId,
+              invoiceId: inv.id,
+              channel: channel as 'email' | 'sms' | 'whatsapp',
+              subject: resp.subject ?? null,
+              body: resp.bodyPreview ?? null,
+              status: 'sent',
+              sentAt: now,
+              error: null,
+            });
+            // Update invoice followup tracking
+            await this.invoiceRepo.update(inv.id, tenantId, {
+              followupCount: inv.followupCount + 1,
+              lastFollowupDate: now,
+            });
+            emailsSent++;
+            await this.eventService.emitEvent(
+              inv.id,
+              'email_sent',
+              { subject: resp.subject, bodyPreview: resp.bodyPreview, channel, runId },
+              'ai-agent',
+              tenantId
+            );
             await this.dlqService.clearFailure(inv.id, tenantId).catch(() => {});
           } else {
-            await this.dlqService.recordFailure(inv.id, tenantId, resp.error).catch(() => {});
+            // Record failed delivery
+            errorsCount++;
+            await this.communicationRepo.create({
+              tenantId,
+              invoiceId: inv.id,
+              channel: channel as 'email' | 'sms' | 'whatsapp',
+              subject: resp.subject ?? null,
+              body: resp.bodyPreview ?? null,
+              status: 'failed',
+              sentAt: null,
+              error: sendError,
+            });
+            await this.eventService.emitEvent(
+              inv.id,
+              'email_generated',
+              { subject: resp.subject, bodyPreview: resp.bodyPreview, error: sendError, channel, runId },
+              'ai-agent',
+              tenantId
+            );
+            await this.dlqService.recordFailure(inv.id, tenantId, sendError).catch(() => {});
           }
         }
 
@@ -222,6 +299,7 @@ export class AgentService {
           clientName: invoice.clientName,
           contactEmail: invoice.contactEmail,
           invoiceAmount: invoice.invoiceAmount.toString(),
+          currency: (invoice as any).currency ?? 'INR',
           dueDate: invoice.dueDate,
           daysOverdue,
           urgencyTier,
@@ -230,21 +308,90 @@ export class AgentService {
           paymentLink,
         });
 
-        await this.eventService.emitEvent(
-          invoice.id,
-          resp.emailSent ? 'email_sent' : 'email_generated',
-          { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel },
-          'ai-agent',
-          tenantId
-        );
-
-        if (!resp.error) {
-          await this.dlqService.clearFailure(invoice.id, tenantId).catch(() => {});
-        } else {
-          await this.dlqService.recordFailure(invoice.id, tenantId, resp.error).catch(() => {});
+        if (resp.error || !resp.emailGenerated) {
+          await this.communicationRepo.create({
+            tenantId,
+            invoiceId: invoice.id,
+            channel: channel as 'email' | 'sms' | 'whatsapp',
+            subject: resp.subject ?? null,
+            body: resp.bodyPreview ?? null,
+            status: 'failed',
+            sentAt: null,
+            error: resp.error ?? 'Generation produced no content',
+          });
+          await this.eventService.emitEvent(
+            invoice.id,
+            'email_generated',
+            { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel },
+            'ai-agent',
+            tenantId
+          );
+          await this.dlqService.recordFailure(invoice.id, tenantId, resp.error ?? 'Generation produced no content').catch(() => {});
+          results.push(resp);
+          continue;
         }
 
-        results.push(resp);
+        // Generation succeeded — now actually send
+        let sendError: string | undefined;
+        try {
+          await this.communicationService.send({
+            tenantId,
+            to: invoice.contactEmail,
+            subject: resp.subject!,
+            html: resp.bodyPreview ?? '',
+            channel: channel as 'email',
+          });
+        } catch (sendErr: any) {
+          sendError = sendErr?.message ?? String(sendErr);
+          logger.warn(`Email send failed for invoice ${invoice.id}: ${sendError}`);
+        }
+
+        const now = new Date();
+        if (!sendError) {
+          await this.communicationRepo.create({
+            tenantId,
+            invoiceId: invoice.id,
+            channel: channel as 'email' | 'sms' | 'whatsapp',
+            subject: resp.subject ?? null,
+            body: resp.bodyPreview ?? null,
+            status: 'sent',
+            sentAt: now,
+            error: null,
+          });
+          await this.invoiceRepo.update(invoice.id, tenantId, {
+            followupCount: invoice.followupCount + 1,
+            lastFollowupDate: now,
+          });
+          await this.eventService.emitEvent(
+            invoice.id,
+            'email_sent',
+            { subject: resp.subject, bodyPreview: resp.bodyPreview, channel },
+            'ai-agent',
+            tenantId
+          );
+          await this.dlqService.clearFailure(invoice.id, tenantId).catch(() => {});
+        } else {
+          await this.communicationRepo.create({
+            tenantId,
+            invoiceId: invoice.id,
+            channel: channel as 'email' | 'sms' | 'whatsapp',
+            subject: resp.subject ?? null,
+            body: resp.bodyPreview ?? null,
+            status: 'failed',
+            sentAt: null,
+            error: sendError,
+          });
+          await this.eventService.emitEvent(
+            invoice.id,
+            'email_generated',
+            { subject: resp.subject, bodyPreview: resp.bodyPreview, error: sendError, channel },
+            'ai-agent',
+            tenantId
+          );
+          await this.dlqService.recordFailure(invoice.id, tenantId, sendError).catch(() => {});
+        }
+
+        results.push({ ...resp, emailSent: !sendError });
       }
 
       return results.length === 1 ? results[0] : results;

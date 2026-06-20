@@ -30,6 +30,7 @@ export interface FollowupResponse {
   emailGenerated: boolean;
   emailSent: boolean;
   subject?: string;
+  htmlBody?: string;
   bodyPreview?: string;
   error?: string;
 }
@@ -119,8 +120,9 @@ export class AimlService {
       invoiceId: raw.invoice_id,
       channel: raw.channel,
       emailGenerated: !!(raw.content?.subject || raw.content?.plain_body),
-      emailSent: false, // generation only — actual sending happens via email provider
+      emailSent: false, // generation only — actual sending happens via CommunicationService
       subject: raw.content?.subject,
+      htmlBody: raw.content?.html_body,
       bodyPreview: raw.content?.plain_body?.slice(0, 300),
       error: raw.error,
     };

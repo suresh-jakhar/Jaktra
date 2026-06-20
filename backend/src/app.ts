@@ -198,7 +198,7 @@ export function createApp(config: AppConfig): Application {
         const idempotencyService = new IdempotencyService(communicationRepo);
 
         const agentRepo = new AgentRepository(config.db);
-        const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService, idempotencyService, paymentService);
+        const agentService = new AgentService(agentRepo, aimlService, invoiceRepo, triageService, eventService, dlqService, idempotencyService, paymentService, communicationService, communicationRepo);
         app.locals.agentService = agentService;
         app.use('/api/agent', createAgentRouter(new AgentController(agentService), authMiddleware, tenantScoped));
       }
