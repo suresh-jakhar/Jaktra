@@ -19,8 +19,10 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
-  FileText
+  FileText,
+  AlertCircle
 } from "lucide-react";
+import { getErrorMessage } from "../utils/error-utils";
 
 const tierConfig: Record<string, { label: string, color: string }> = {
   stage_1_warm: { label: 'Warm (Stage 1)', color: 'bg-blue-100 text-blue-800' },
@@ -56,7 +58,7 @@ export function Invoices() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['invoices', params],
     queryFn: () => invoiceService.getInvoices(params),
   });
@@ -156,6 +158,16 @@ export function Invoices() {
           )}
         </div>
       </div>
+
+      {isError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start">
+          <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-medium">Failed to load invoices</h4>
+            <p className="text-sm mt-1">{getErrorMessage(error)}</p>
+          </div>
+        </div>
+      )}
 
       <Card className="flex flex-col">
         {/* Filters */}

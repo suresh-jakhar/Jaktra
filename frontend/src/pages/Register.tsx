@@ -6,8 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
-import type { ApiError } from "../types/api";
-import { AxiosError } from "axios";
+import { getErrorMessage } from "../utils/error-utils";
 
 export function Register() {
   const [name, setName] = useState("");
@@ -37,8 +36,7 @@ export function Register() {
       login(response.token, response.user);
       navigate("/", { replace: true });
     } catch (err) {
-      const axiosError = err as AxiosError<ApiError>;
-      setError(axiosError.response?.data?.error?.message || "Registration failed. Please try again.");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

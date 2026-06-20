@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { AlertTriangle, MailX, RefreshCw, X, Loader2, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getErrorMessage } from '../utils/error-utils';
 
 
 export function DLQ() {
@@ -13,6 +14,7 @@ export function DLQ() {
   const queryClient = useQueryClient();
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const { data: dlqEntries, isLoading, isError } = useQuery({
     queryKey: ['dlq-entries'],
@@ -22,18 +24,33 @@ export function DLQ() {
 
   const dismissMutation = useMutation({
     mutationFn: (invoiceId: string) => dlqService.deleteEntry(invoiceId),
+    onMutate: () => {
+      setMutationError(null);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dlq-entries'] });
       setDismissingId(null);
     },
+    onError: (err: any) => {
+      setMutationError(getErrorMessage(err));
+      setDismissingId(null);
+    }
   });
 
   const retryMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
       await agentService.runAgentForInvoice(invoiceId);
     },
-    onSettled: () => {
+    onMutate: () => {
+      setMutationError(null);
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dlq-entries'] });
+    },
+    onError: (err: any) => {
+      setMutationError(getErrorMessage(err));
+    },
+    onSettled: () => {
       setRetryingId(null);
     },
   });
@@ -72,6 +89,21 @@ export function DLQ() {
               You have {criticalCount} invoice(s) that have failed delivery 3 or more times. They require immediate manual intervention.
             </p>
           </div>
+        </div>
+      )}
+
+      {mutationError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-xl flex items-start shadow-sm justify-between">
+          <div className="flex items-start">
+            <AlertTriangle className="w-6 h-6 mr-3 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-red-900">Operation Failed</h4>
+              <p className="text-sm mt-1">{mutationError}</p>
+            </div>
+          </div>
+          <button onClick={() => setMutationError(null)} className="text-red-500 hover:text-red-700">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

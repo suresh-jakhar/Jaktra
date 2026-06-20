@@ -8,27 +8,29 @@ import {
   PieChart, Pie, Legend
 } from "recharts";
 
+import { getErrorMessage } from "../utils/error-utils";
+
 export function Dashboard() {
-  const { data: summaryData, isLoading: isSummaryLoading, isError: isSummaryError } = useQuery({
+  const { data: summaryData, isLoading: isSummaryLoading, isError: isSummaryError, error: summaryError } = useQuery({
     queryKey: ['analytics-summary'],
     queryFn: () => analyticsService.getSummary(),
     refetchInterval: 30000,
   });
 
-  const { data: agingData, isLoading: isAgingLoading } = useQuery({
+  const { data: agingData, isLoading: isAgingLoading, isError: isAgingError, error: agingError } = useQuery({
     queryKey: ['analytics-aging'],
     queryFn: () => analyticsService.getAging(),
     refetchInterval: 30000,
   });
 
-  const { data: runsData, isLoading: isRunsLoading } = useQuery({
+  const { data: runsData, isLoading: isRunsLoading, isError: isRunsError } = useQuery({
     queryKey: ['agent-runs'],
     queryFn: () => agentService.getRuns(),
     refetchInterval: 30000,
   });
 
   const isLoading = isSummaryLoading || isAgingLoading || isRunsLoading;
-  const isError = isSummaryError;
+  const isError = isSummaryError || isAgingError || isRunsError;
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -186,6 +188,12 @@ export function Dashboard() {
             <div className="h-[300px] w-full mt-4">
               {isAgingLoading ? (
                 <div className="h-full w-full flex items-center justify-center text-slate-400">Loading chart...</div>
+              ) : isAgingError ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-red-500 p-4">
+                  <AlertTriangle className="h-8 w-8 mb-2" />
+                  <p className="text-sm font-medium">Failed to load aging pipeline</p>
+                  <p className="text-xs text-red-400 mt-1">{getErrorMessage(agingError)}</p>
+                </div>
               ) : agingChartData.length === 0 ? (
                 <div className="h-full w-full flex items-center justify-center text-slate-400">No aging data available</div>
               ) : (
@@ -219,6 +227,12 @@ export function Dashboard() {
             <div className="h-[300px] w-full mt-4">
               {isSummaryLoading ? (
                 <div className="h-full w-full flex items-center justify-center text-slate-400">Loading chart...</div>
+              ) : isSummaryError ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-red-500 p-4">
+                  <AlertTriangle className="h-8 w-8 mb-2" />
+                  <p className="text-sm font-medium">Failed to load portfolio data</p>
+                  <p className="text-xs text-red-400 mt-1">{getErrorMessage(summaryError)}</p>
+                </div>
               ) : portfolioData.length === 0 ? (
                 <div className="h-full w-full flex items-center justify-center text-slate-400">No portfolio data available</div>
               ) : (

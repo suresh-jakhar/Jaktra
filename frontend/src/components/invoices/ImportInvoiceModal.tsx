@@ -77,7 +77,7 @@ export function ImportInvoiceModal({ isOpen, onClose }: ImportInvoiceModalProps)
           setPreview(results.data);
         },
         error: (err) => {
-          setError("Failed to parse CSV preview: " + err.message);
+          setError("Failed to parse CSV preview: " + getErrorMessage(err));
         }
       });
     } else {

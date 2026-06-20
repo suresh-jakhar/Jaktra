@@ -8,10 +8,12 @@ export function getErrorMessage(error: unknown): string {
     if (data?.error?.message) {
       message = data.error.message;
       if (data.error.details && (message === 'An unexpected error occurred' || message === 'Internal Server Error')) {
-        message = data.error.details;
+        if (import.meta.env.DEV) {
+          message = data.error.details;
+        }
       }
     } else if (data?.error?.details) {
-      message = data.error.details;
+      message = import.meta.env.DEV ? data.error.details : 'Service unavailable';
     } else if (data?.message) {
       message = data.message;
     } else {

@@ -6,6 +6,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { useAuth } from '../contexts/AuthContext';
 import { Bot, Play, AlertCircle, Loader2 } from 'lucide-react';
 
+import { getErrorMessage } from '../utils/error-utils';
+
 export function Agent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -69,7 +71,7 @@ export function Agent() {
           <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="font-medium">Failed to start agent</h4>
-            <p className="text-sm mt-1">{(runMutation.error as any)?.response?.data?.error?.message || runMutation.error.message}</p>
+            <p className="text-sm mt-1">{getErrorMessage(runMutation.error)}</p>
           </div>
         </div>
       )}

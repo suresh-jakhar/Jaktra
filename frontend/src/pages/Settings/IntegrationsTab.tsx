@@ -96,7 +96,7 @@ export function IntegrationsTab() {
                   <div className="mt-3">
                     <p className="text-xs text-slate-500 font-medium">Webhook URL for Razorpay:</p>
                     <code className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded block mt-1 break-all select-all border border-slate-300">
-                      https://&lt;your-ngrok-url&gt;/api/webhooks/payments/{user?.tenant_id}/razorpay
+                      https://&lt;your-ngrok-url&gt;/api/webhooks/payments/{user?.tenantId}/razorpay
                     </code>
                   </div>
                 </div>
@@ -151,7 +151,7 @@ export function IntegrationsTab() {
                   <p className="text-xs text-slate-500">
                     Configure your Razorpay webhook to send `payment.captured` events to: <br/>
                     <code className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded inline-block mt-1 break-all select-all border border-slate-300">
-                      https://&lt;your-ngrok-url&gt;/api/webhooks/payments/{user?.tenant_id}/razorpay
+                      https://&lt;your-ngrok-url&gt;/api/webhooks/payments/{user?.tenantId}/razorpay
                     </code>
                   </p>
                 </div>

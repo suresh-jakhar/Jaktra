@@ -6,8 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
-import type { ApiError } from "../types/api";
-import { AxiosError } from "axios";
+import { getErrorMessage } from "../utils/error-utils";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -30,8 +29,7 @@ export function Login() {
       login(response.token, response.user);
       navigate(from, { replace: true });
     } catch (err) {
-      const axiosError = err as AxiosError<ApiError>;
-      setError(axiosError.response?.data?.error?.message || "Invalid email or password.");
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
