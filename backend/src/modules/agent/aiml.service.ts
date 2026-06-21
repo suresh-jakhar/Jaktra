@@ -33,6 +33,7 @@ export interface FollowupResponse {
   subject?: string;
   htmlBody?: string;
   bodyPreview?: string;
+  body?: string;
   error?: string;
 }
 
@@ -126,6 +127,7 @@ export class AimlService {
       subject: raw.content?.subject,
       htmlBody: raw.content?.html_body,
       bodyPreview: raw.content?.plain_body?.slice(0, 300),
+      body: raw.content?.plain_body,
       error: raw.error,
     };
   }
