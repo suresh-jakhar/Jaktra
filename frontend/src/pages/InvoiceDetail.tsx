@@ -474,7 +474,9 @@ export function InvoiceDetail() {
                   </div>
                 ) : (
                   <div className="relative border-l border-slate-200 ml-3 space-y-8 py-2">
-                    {timeline.map((event) => (
+                    {[...timeline]
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map((event) => (
                       <div key={event.id} className="relative pl-8">
                         <div className="absolute -left-3.5 top-1 h-7 w-7 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
                           {renderEventIcon(event.eventType)}

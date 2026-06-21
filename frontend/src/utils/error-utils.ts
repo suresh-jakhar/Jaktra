@@ -37,7 +37,15 @@ export function getErrorMessage(error: unknown): string {
   }
 
   // Normalize/sanitize raw technical messages
-  const lowerMsg = message.toLowerCase();
+  let sanitizedMessage = message;
+  if (message.toLowerCase().includes('asynchronously detected')) {
+    sanitizedMessage = message.replace(/\s*\(asynchronously detected\)/gi, '');
+  }
+  if (message.toLowerCase().includes('asynchronously bounced')) {
+    sanitizedMessage = message.replace(/\s*\(asynchronously bounced\)/gi, '');
+  }
+
+  const lowerMsg = sanitizedMessage.toLowerCase();
   if (lowerMsg.includes('querymx') || lowerMsg.includes('unreachable or invalid') || lowerMsg.includes('does not have valid mail servers')) {
     return 'Recipient email domain is invalid or does not exist';
   }
@@ -45,7 +53,7 @@ export function getErrorMessage(error: unknown): string {
     return 'AI service temporarily unavailable';
   }
   if (lowerMsg.includes('validation failed') || lowerMsg.includes('invalid credentials') || lowerMsg.includes('bad request')) {
-    return message;
+    return sanitizedMessage;
   }
   if (lowerMsg.includes('smtp') || lowerMsg.includes('email sending failed') || lowerMsg.includes('sendgrid')) {
     return 'Email service unavailable';
@@ -72,5 +80,5 @@ export function getErrorMessage(error: unknown): string {
     return 'Invoice not found';
   }
 
-  return message;
+  return sanitizedMessage;
 }

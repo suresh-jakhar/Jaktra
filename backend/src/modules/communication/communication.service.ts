@@ -343,7 +343,7 @@ export class CommunicationService {
           if (latestSent) {
             await this.communicationRepo.markFailed(
               latestSent.id,
-              'Email bounced: Recipient mailbox does not exist (asynchronously detected)'
+              'Email bounced: Recipient mailbox does not exist'
             );
           }
 
