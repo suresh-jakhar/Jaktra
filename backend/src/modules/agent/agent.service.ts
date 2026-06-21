@@ -356,7 +356,7 @@ export class AgentService {
             tenantId,
             to: invoice.contactEmail,
             subject: resp.subject!,
-            html: resp.bodyPreview ?? '',
+            html: resp.htmlBody ?? resp.bodyPreview ?? '',
             channel: channel as 'email',
           });
         } catch (sendErr: any) {

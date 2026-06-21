@@ -1,4 +1,4 @@
-"""Email Persona"""
+"""Email Persona — Stern/Final Warning (final_notice)"""
 from langchain_core.prompts import ChatPromptTemplate
 
 _SYSTEM_PERSONA = (
@@ -13,16 +13,13 @@ _SYSTEM_PERSONA = (
     "\n\nSTRICT VOCABULARY RULES:"
     "\n- BAN: Do NOT use the word 'outstanding' or the phrase 'slipped through the cracks'."
     "\n- MANDATORY ALTERNATIVES: Use ONLY 'pending invoice', 'unpaid invoice', 'payment due', or 'open invoice'."
+    "\n\nFORMAT RULES:"
+    "\n- Write each paragraph on its own line separated by a blank line."
+    "\n- Keep the greeting on its own line."
+    "\n- Sign-off must be on its own line after a blank line."
+    "\n- Do NOT include placeholder text like [payment link] or [bank details] if they are not provided."
+    "\n- Do NOT invent payment methods, account names, or links that were not given to you."
 )
-
-_FORMAT_INSTRUCTION = """
-Respond with ONLY the email in this exact format:
-
-Subject: <subject line>
-
-Body:
-<email body>
-"""
 
 _HUMAN = """
 Write a stern final warning.
@@ -34,9 +31,16 @@ Invoice Details:
 - Amount: ${invoice_amount}
 
 Tone: Stern & Urgent.
-CTA: Demand immediate payment via {payment_link}.
+CTA: Demand immediate payment. State that failure to pay within 5 business days will result in referral to a collections agency and potential legal proceedings.
+{cta_instruction}
 Sign off as: {sender_name}
-{format_instruction}
+
+Respond with ONLY the email in this exact format — no extra commentary, no markdown:
+
+Subject: <subject line>
+
+Body:
+<email body — paragraphs separated by blank lines>
 """
 
 PROMPT = ChatPromptTemplate.from_messages([

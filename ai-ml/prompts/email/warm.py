@@ -1,4 +1,4 @@
-"""Email Persona"""
+"""Email Persona — Warm/Helpful (first_followup)"""
 from langchain_core.prompts import ChatPromptTemplate
 
 _SYSTEM_PERSONA = (
@@ -13,16 +13,13 @@ _SYSTEM_PERSONA = (
     "\n\nSTRICT VOCABULARY RULES:"
     "\n- BAN: Do NOT use the word 'outstanding' or the phrase 'slipped through the cracks'."
     "\n- MANDATORY ALTERNATIVES: Use ONLY 'pending invoice', 'unpaid invoice', 'payment due', or 'open invoice'."
+    "\n\nFORMAT RULES:"
+    "\n- Write each paragraph on its own line separated by a blank line."
+    "\n- Keep the greeting on its own line."
+    "\n- Sign-off must be on its own line after a blank line."
+    "\n- Do NOT include placeholder text like [payment link] or [bank details] if they are not provided."
+    "\n- Do NOT invent payment methods, account names, or links that were not given to you."
 )
-
-_FORMAT_INSTRUCTION = """
-Respond with ONLY the email in this exact format:
-
-Subject: <subject line>
-
-Body:
-<email body>
-"""
 
 _HUMAN = """
 Write a professional and concise payment reminder.
@@ -36,9 +33,15 @@ Invoice Details:
 
 Tone: Helpful & Professional.
 Instructions: Mention that payment is now overdue.
-CTA: Provide the Payment Link: {payment_link} and Bank Details: {bank_details}.
+{cta_instruction}
 Sign off as: {sender_name}
-{format_instruction}
+
+Respond with ONLY the email in this exact format — no extra commentary, no markdown:
+
+Subject: <subject line>
+
+Body:
+<email body — paragraphs separated by blank lines>
 """
 
 PROMPT = ChatPromptTemplate.from_messages([
