@@ -40,7 +40,7 @@ class FallbackStore implements Store {
   constructor(prefix: string) {
     this.redisStore = new RedisStore({
       sendCommand: (...args: string[]) => {
-        if (!redisClient || !isRedisConnected) {
+        if (!redisClient || !redisClient.isOpen) {
           throw new Error('Redis not connected');
         }
         return redisClient.sendCommand(args);
@@ -51,8 +51,26 @@ class FallbackStore implements Store {
   }
 
   async init(options: Options): Promise<void> {
-    if (this.redisStore.init) {
-      await this.redisStore.init(options);
+    if (!this.redisStore.init) {
+      this.memoryStore.init(options);
+      return;
+    }
+
+    let timeoutId: NodeJS.Timeout | undefined;
+    try {
+      // Race the Redis initialization with a 2-second timeout to prevent blocking startup
+      await Promise.race([
+        this.redisStore.init(options),
+        new Promise<void>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Connection timeout')), 2000);
+        }),
+      ]);
+    } catch (err: any) {
+      console.warn(`Redis rate limit store initialization deferred: ${err.message}. Rate limiting will fall back to memory until Redis is available.`);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
     this.memoryStore.init(options);
   }
