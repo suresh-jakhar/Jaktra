@@ -129,10 +129,11 @@ export function createApp(config: AppConfig): Application {
     const integrationRepo = new IntegrationRepository(config.db);
     const settingsRepo = new SettingsRepository(config.db);
     const paymentRepo = new PaymentRepository(config.db);
+    const dlqRepo = new DlqRepository(config.db);
 
     // Shared Services
     const integrationService = new IntegrationService(integrationRepo);
-    const communicationService = new CommunicationService(communicationRepo, invoiceRepo, integrationService, eventRepo);
+    const communicationService = new CommunicationService(communicationRepo, invoiceRepo, integrationService, eventRepo, dlqRepo);
     
     const gatewayFactory = new PaymentGatewayFactory();
     gatewayFactory.register(new RazorpayAdapter());
@@ -191,7 +192,6 @@ export function createApp(config: AppConfig): Application {
         app.use('/api/aiml', createAimlRouter(new AimlController(aimlService), authMiddleware));
         app.locals.aimlService = aimlService;
 
-        const dlqRepo = new DlqRepository(config.db);
         const dlqService = new DlqService(dlqRepo);
         app.use('/api/dlq', createDlqRouter(new DlqController(dlqService), authMiddleware, tenantScoped));
 

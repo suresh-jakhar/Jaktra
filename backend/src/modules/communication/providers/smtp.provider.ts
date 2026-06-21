@@ -38,11 +38,15 @@ export class SmtpProvider {
     try {
       transporter = await SmtpConnectionFactory.createTransporter(this.config);
       
-      await SmtpConnectionFactory.executeWithTimeout(
+      const info = await SmtpConnectionFactory.executeWithTimeout(
         transporter,
         () => transporter!.sendMail(msg),
         30000 // 30s overall timeout
-      );
+      ) as any;
+
+      if (info && info.rejected && info.rejected.length > 0) {
+        throw new ValidationError(`SMTP server synchronously rejected recipients: ${info.rejected.join(', ')}`);
+      }
 
       logger.info(`[LIVE] Email sent successfully to ${to} from ${from.email} via SMTP`);
       return true;

@@ -176,6 +176,7 @@ export class AgentService {
               subject: resp.subject!,
               html: resp.htmlBody ?? resp.bodyPreview ?? '',
               channel: channel as 'email',
+              invoiceId: inv.id,
             });
           } catch (sendErr: any) {
             sendError = sendErr?.message ?? String(sendErr);
@@ -360,6 +361,7 @@ export class AgentService {
             subject: resp.subject!,
             html: resp.htmlBody ?? resp.bodyPreview ?? '',
             channel: channel as 'email',
+            invoiceId: invoice.id,
           });
         } catch (sendErr: any) {
           sendError = sendErr?.message ?? String(sendErr);
