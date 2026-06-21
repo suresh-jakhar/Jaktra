@@ -24,6 +24,7 @@ class FollowupRequest(BaseModel):
     bank_details: Optional[str] = None
     sender_name: Optional[str] = None
     company_name: Optional[str] = None
+    invoice_subject: Optional[str] = None
 
 class Content(BaseModel):
     subject: str

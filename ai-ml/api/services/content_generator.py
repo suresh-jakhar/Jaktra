@@ -120,6 +120,13 @@ class ContentGenerator:
         # Build a conditional CTA — never pass empty strings to the prompt
         cta_instruction = _build_cta_instruction(payment_link, bank_details)
 
+        # Build subject context — only include if the invoice has a description
+        raw_subject = getattr(request, "invoice_subject", None)
+        if raw_subject and str(raw_subject).strip():
+            subject_context = f"- Invoice Description: {str(raw_subject).strip()}"
+        else:
+            subject_context = ""
+
         messages = prompt.format_messages(
             client_name=sanitize_input(getattr(request, "client_name", "")),
             invoice_no=sanitize_input(getattr(request, "invoice_no", "")),
@@ -129,6 +136,7 @@ class ContentGenerator:
             followup_count=getattr(request, "followup_count", 0),
             sender_name=sender_name,
             cta_instruction=cta_instruction,
+            subject_context=subject_context,
         )
 
         llm_response = await self.llm.generate(messages, temperature=settings.LLM_TEMPERATURE)

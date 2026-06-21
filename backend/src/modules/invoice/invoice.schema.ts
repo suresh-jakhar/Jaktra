@@ -7,6 +7,7 @@ export const createInvoiceSchema = z.object({
   invoiceAmount: z.number().positive('Amount must be positive'),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be YYYY-MM-DD'),
   contactEmail: z.string().email('Invalid email address'),
+  subject: z.string().max(500).optional(),
 });
 
 export const bulkCreateInvoiceSchema = z.object({
@@ -18,6 +19,7 @@ export const updateInvoiceSchema = z.object({
   invoiceAmount: z.number().positive().optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   contactEmail: z.string().email().optional(),
+  subject: z.string().max(500).optional().nullable(),
 });
 
 export const updateInvoiceStatusSchema = z.object({
@@ -35,3 +37,4 @@ export const listInvoicesSchema = z.object({
   days_overdue_min: z.coerce.number().optional(),
   days_overdue_max: z.coerce.number().optional(),
 });
+

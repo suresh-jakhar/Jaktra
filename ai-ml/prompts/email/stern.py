@@ -28,6 +28,7 @@ This is the last notice before the account is referred to legal/debt recovery.
 Invoice Details:
 - Client: {client_name}
 - Invoice No: {invoice_no}
+{subject_context}
 - Amount: ${invoice_amount}
 
 Tone: Stern & Urgent.

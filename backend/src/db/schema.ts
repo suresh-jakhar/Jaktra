@@ -104,6 +104,7 @@ export const invoices = pgTable(
     currency: text('currency').notNull().default('INR'),
     dueDate: date('due_date').notNull(),
     contactEmail: text('contact_email').notNull(),
+    subject: text('subject'),
     paymentStatus: paymentStatusEnum('payment_status').notNull().default('Pending'),
     followupCount: integer('followup_count').notNull().default(0),
     lastFollowupDate: timestamp('last_followup_date', { withTimezone: true }),

@@ -39,6 +39,7 @@ export interface Invoice {
   dueDate: string;
   paymentStatus: 'Pending' | 'Paid' | 'Overdue';
   contactEmail: string;
+  subject?: string | null;
   followupCount: number;
   lastFollowupDate: string | null;
   urgencyTier: string | null;

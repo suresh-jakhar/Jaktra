@@ -21,6 +21,7 @@ export interface FollowupRequest {
   followupCount: number;
   channel: string;
   paymentLink?: string;
+  invoiceSubject?: string;
 }
 
 /** Shape returned by the Python AI-ML /followup endpoint */
@@ -114,6 +115,7 @@ export class AimlService {
       followup_count: invoice.followupCount,
       channel: invoice.channel,
       payment_link: invoice.paymentLink,
+      invoice_subject: invoice.invoiceSubject ?? null,
     };
     const raw = await this.request<RawFollowupResponse>('POST', '/followup', payload);
     return {

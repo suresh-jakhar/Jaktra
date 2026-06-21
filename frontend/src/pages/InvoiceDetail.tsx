@@ -339,9 +339,20 @@ export function InvoiceDetail() {
             </CardContent>
           </Card>
 
+          {invoice.subject && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Invoice Description</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-slate-700 leading-relaxed">{invoice.subject}</p>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Aging & Status</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider">Aging &amp; Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>

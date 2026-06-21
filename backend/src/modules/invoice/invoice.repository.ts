@@ -178,6 +178,7 @@ export class InvoiceRepository {
           invoiceAmount: data.invoiceAmount,
           dueDate: data.dueDate,
           contactEmail: data.contactEmail,
+          subject: data.subject ?? null,
           paymentStatus: data.paymentStatus,
           followupCount: data.followupCount,
           lastFollowupDate: data.lastFollowupDate,

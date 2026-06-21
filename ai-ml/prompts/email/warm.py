@@ -28,6 +28,7 @@ Assume a simple oversight and maintain a helpful tone.
 Invoice Details:
 - Client: {client_name}
 - Invoice No: {invoice_no}
+{subject_context}
 - Amount: ${invoice_amount}
 - Due Date: {due_date}
 

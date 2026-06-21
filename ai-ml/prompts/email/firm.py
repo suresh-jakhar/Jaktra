@@ -28,6 +28,7 @@ State that the payment remains unsettled and we require a confirmed payment date
 Invoice Details:
 - Client: {client_name}
 - Invoice No: {invoice_no}
+{subject_context}
 - Amount: ${invoice_amount}
 - Due Date: {due_date}
 

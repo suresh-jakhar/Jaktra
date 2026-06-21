@@ -31,6 +31,13 @@ function canonicalizeKey(key: string): string {
   if (['lastfollowupdate', 'last_followup_date', 'lastfollowup', 'last_followup', 'latestfollowup', 'latest_followup'].includes(cleanUnderscore)) {
     return 'last_followup_date';
   }
+  if ([
+    'subject', 'invoice_subject', 'description', 'desc', 'invoice_description',
+    'memo', 'notes', 'note', 'item', 'items', 'service', 'services',
+    'details', 'detail', 'particulars', 'narration', 'remark', 'remarks', 'purpose'
+  ].includes(cleanUnderscore)) {
+    return 'invoice_subject';
+  }
 
   // 2. Token overlap fallback for conversational/complex names
   const cleanTokens = clean.replace(/[^a-z0-9\s_]/g, ' ').split(/[\s_]+/).filter(Boolean);
@@ -44,7 +51,8 @@ function canonicalizeKey(key: string): string {
     contact_email: ['email', 'mail', 'contact', 'address'],
     followup_count: ['followup', 'followups', 'remind', 'reminders', 'count', 'number', 'frequency', 'sent'],
     payment_status: ['status', 'state', 'payment', 'paid'],
-    last_followup_date: ['last', 'recent', 'latest', 'followup', 'remind', 'date']
+    last_followup_date: ['last', 'recent', 'latest', 'followup', 'remind', 'date'],
+    invoice_subject: ['subject', 'description', 'desc', 'memo', 'note', 'notes', 'item', 'service', 'detail', 'narration', 'remark', 'purpose', 'particulars'],
   };
 
   let bestKey = '';
@@ -209,6 +217,14 @@ const csvRowSchema = z.object({
     },
     z.instanceof(Date).optional()
   ),
+  invoice_subject: z.preprocess(
+    (val) => (
+      val !== undefined && val !== null && String(val).trim() !== ''
+        ? String(val).trim().slice(0, 500)
+        : undefined
+    ),
+    z.string().max(500).optional()
+  ),
   days_overdue: z.any().optional(),
 });
 
@@ -220,6 +236,7 @@ export interface ParsedRow {
   invoiceAmount: string;
   dueDate: string;
   contactEmail: string;
+  subject?: string;
   followupCount: number;
   paymentStatus: 'Pending' | 'Paid' | 'Overdue' | 'Written Off';
   lastFollowupDate: Date | undefined;
@@ -267,6 +284,7 @@ export function parseCsvBuffer(buffer: Buffer): CsvParseResult {
       invoiceAmount: data.invoice_amount,
       dueDate: data.due_date,
       contactEmail: data.contact_email,
+      subject: data.invoice_subject,
       followupCount: data.followup_count,
       paymentStatus: data.payment_status,
       lastFollowupDate: data.last_followup_date,
@@ -327,6 +345,7 @@ export function parseExcelBuffer(buffer: Buffer): CsvParseResult {
       invoiceAmount: data.invoice_amount,
       dueDate: data.due_date,
       contactEmail: data.contact_email,
+      subject: data.invoice_subject,
       followupCount: data.followup_count,
       paymentStatus: data.payment_status,
       lastFollowupDate: data.last_followup_date,

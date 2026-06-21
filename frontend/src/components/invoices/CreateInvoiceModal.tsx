@@ -18,6 +18,7 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
     invoiceAmount: "",
     dueDate: "",
     contactEmail: "",
+    subject: "",
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
         invoiceAmount: "",
         dueDate: "",
         contactEmail: "",
+        subject: "",
       });
       setError(null);
     },
@@ -53,14 +55,15 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
     
     const payload = {
       ...formData,
-      invoiceAmount: parseFloat(formData.invoiceAmount as string)
+      invoiceAmount: parseFloat(formData.invoiceAmount as string),
+      subject: formData.subject.trim() || undefined,
     };
     
     // Additional basic validations could go here
     mutation.mutate(payload);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -148,6 +151,23 @@ export function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceModalProps)
             placeholder="1500.00"
             className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
           />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="subject" className="text-sm font-medium text-slate-700">
+            Invoice Description <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            id="subject"
+            name="subject"
+            rows={2}
+            value={formData.subject}
+            onChange={handleChange}
+            placeholder="e.g. Web Development Services – Q1 2026"
+            maxLength={500}
+            className="flex w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
+          />
+          <p className="text-xs text-slate-400">What this invoice is for — used to personalise follow-up emails.</p>
         </div>
 
         <div className="pt-4 flex justify-end space-x-3">

@@ -140,6 +140,7 @@ export class AgentService {
             followupCount: inv.followupCount,
             channel,
             paymentLink,
+            invoiceSubject: (inv as any).subject ?? undefined,
           });
 
           // Generation failed — record in DLQ and move on
@@ -324,6 +325,7 @@ export class AgentService {
           followupCount: invoice.followupCount,
           channel,
           paymentLink,
+          invoiceSubject: (invoice as any).subject ?? undefined,
         });
 
         if (resp.error || !resp.emailGenerated) {

@@ -28,6 +28,7 @@ Express concern regarding the unresolved balance and the potential impact on the
 Invoice Details:
 - Client: {client_name}
 - Invoice No: {invoice_no}
+{subject_context}
 - Amount: ${invoice_amount}
 - Days Overdue: {days_overdue}
 
