@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { agentService } from '../services/agent';
+import { ToneSelector } from '../components/agent/ToneSelector';
 import { settingsService } from '../services/settings';
 import { RunList } from '../components/agent/RunList';
 import { ActivityFeed } from '../components/agent/ActivityFeed';
@@ -14,6 +16,7 @@ import { getErrorMessage } from '../utils/error-utils';
 export function Agent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [selectedTone, setSelectedTone] = useState<string>('');
 
   const { data: runsResponse, isLoading } = useQuery({
     queryKey: ['agent-runs'],
@@ -36,7 +39,7 @@ export function Agent() {
   const emailReady = !!(settings?.defaultEmailProvider && settings?.senderEmail);
 
   const runMutation = useMutation({
-    mutationFn: () => agentService.runAgent(),
+    mutationFn: (tone?: string) => agentService.runAgent(tone),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-runs'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -48,7 +51,7 @@ export function Agent() {
     usePaymentWarning({ integrations, settings });
 
   const handleRunAgent = () => {
-    runWithWarningCheck(() => runMutation.mutate());
+    runWithWarningCheck(() => runMutation.mutate(selectedTone || undefined));
   };
 
   const isRunning = runsResponse?.runs[0]?.status === 'running' || runMutation.isPending;
@@ -65,24 +68,32 @@ export function Agent() {
         </div>
         <div className="flex items-center space-x-4">
           {user?.role !== 'viewer' && (
-            <button
-              onClick={handleRunAgent}
-              disabled={isRunning || !emailReady}
-              title={!emailReady ? 'Email is not configured. Set up an email provider in Settings first.' : undefined}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              {isRunning ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Agent Running...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  Run Agent Now
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <ToneSelector
+                value={selectedTone}
+                onChange={setSelectedTone}
+                disabled={isRunning || !emailReady}
+                className="h-10 border-slate-200"
+              />
+              <button
+                onClick={handleRunAgent}
+                disabled={isRunning || !emailReady}
+                title={!emailReady ? 'Email is not configured. Set up an email provider in Settings first.' : undefined}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Agent Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Run Agent Now
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>

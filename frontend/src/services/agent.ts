@@ -12,13 +12,13 @@ export const agentService = {
     return response.data;
   },
 
-  runAgent: async (): Promise<AgentRun> => {
-    const response = await api.post('/agent/run');
+  runAgent: async (tone?: string): Promise<AgentRun> => {
+    const response = await api.post('/agent/run', { tone });
     return response.data;
   },
 
-  runAgentForInvoice: async (invoiceId: string) => {
-    const response = await api.post(`/agent/run/invoice/${invoiceId}`);
+  runAgentForInvoice: async (invoiceId: string, tone?: string) => {
+    const response = await api.post(`/agent/run/invoice/${invoiceId}`, { tone });
     return response.data;
   },
 };

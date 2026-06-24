@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoiceService } from "../services/invoice";
 import { eventService } from "../services/event";
 import { agentService } from "../services/agent";
+import { ToneSelector } from "../components/agent/ToneSelector";
 import { communicationService } from "../services/communication";
 import { settingsService } from "../services/settings";
 import { Badge } from "../components/ui/Badge";
@@ -49,12 +50,21 @@ export function InvoiceDetail() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'timeline' | 'emails'>('timeline');
   const [error, setError] = useState<string | null>(null);
+  const [selectedTone, setSelectedTone] = useState<string>('');
 
   const { data: invoice, isLoading: isInvoiceLoading } = useQuery({
     queryKey: ["invoice", id],
     queryFn: () => invoiceService.getInvoice(id!),
     enabled: !!id,
   });
+
+  useEffect(() => {
+    if (invoice?.urgencyTier && invoice.urgencyTier !== 'legal_escalation') {
+      setSelectedTone(invoice.urgencyTier);
+    } else if (invoice) {
+      setSelectedTone('stage_1_warm');
+    }
+  }, [invoice]);
 
   const { data: timeline, isLoading: isTimelineLoading } = useQuery({
     queryKey: ["invoice-timeline", id],
@@ -98,7 +108,7 @@ export function InvoiceDetail() {
   });
 
   const agentMutation = useMutation({
-    mutationFn: () => agentService.runAgentForInvoice(id!),
+    mutationFn: (tone?: string) => agentService.runAgentForInvoice(id!, tone),
     onMutate: () => setError(null),
     onError: (err: any) => {
       setError(getErrorMessage(err));
@@ -112,7 +122,7 @@ export function InvoiceDetail() {
   });
 
   const handleTriggerFollowup = () => {
-    runWithWarningCheck(() => agentMutation.mutate());
+    runWithWarningCheck(() => agentMutation.mutate(selectedTone || undefined));
   };
 
   const generateLinkMutation = useMutation({
@@ -302,14 +312,22 @@ export function InvoiceDetail() {
                     Mark as Paid
                   </button>
 
-                  <button
-                    onClick={handleTriggerFollowup}
-                    disabled={agentMutation.isPending}
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2 disabled:opacity-50"
-                  >
-                    {agentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-                    Trigger Follow-up
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <ToneSelector
+                      value={selectedTone}
+                      onChange={setSelectedTone}
+                      disabled={agentMutation.isPending}
+                      className="h-10 border-slate-200"
+                    />
+                    <button
+                      onClick={handleTriggerFollowup}
+                      disabled={agentMutation.isPending}
+                      className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2 disabled:opacity-50"
+                    >
+                      {agentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                      Trigger Follow-up
+                    </button>
+                  </div>
                 </>
               )}
             </>
