@@ -46,7 +46,7 @@ export class AgentService {
     }
   }
 
-  async triggerRun(tenantId: string) {
+  async triggerRun(tenantId: string, toneOverride?: UrgencyTier) {
     await this.assertEmailConfigured(tenantId);
 
     const invoices = await this.invoiceRepo.findByTenant(tenantId);
@@ -68,7 +68,7 @@ export class AgentService {
     }
 
     this.activeRuns.add(run.id);
-    this.processRunInBackground(run.id, tenantId, triaged.invoices)
+    this.processRunInBackground(run.id, tenantId, triaged.invoices, toneOverride)
       .catch(async (err) => {
         logger.error(`Background run ${run.id} failed`, err);
         await this.agentRepo.updateRun(run.id, tenantId, {
@@ -87,7 +87,8 @@ export class AgentService {
   private async processRunInBackground(
     runId: string,
     tenantId: string,
-    invoices: TriagedInvoice[]
+    invoices: TriagedInvoice[],
+    toneOverride?: UrgencyTier
   ): Promise<void> {
     let processed = 0;
     let emailsSent = 0;
@@ -107,12 +108,15 @@ export class AgentService {
           continue;
         }
 
-        const channels = this.selectChannels(inv.computedTier);
+        const effectiveTier = toneOverride ?? inv.computedTier;
+        const toneSource = toneOverride ? 'manual' : 'auto';
+
+        const channels = this.selectChannels(effectiveTier);
         if (channels.length === 0) {
           await this.eventService.emitEvent(
             inv.id,
             'halted',
-            { reason: 'no_automated_channel', tier: inv.computedTier, runId },
+            { reason: 'no_automated_channel', tier: effectiveTier, toneSource, runId },
             'system',
             tenantId
           );
@@ -163,7 +167,7 @@ export class AgentService {
             currency: (inv as any).currency ?? 'INR',
             dueDate: inv.dueDate,
             daysOverdue: inv.daysOverdue,
-            urgencyTier: inv.computedTier,
+            urgencyTier: effectiveTier,
             followupCount: inv.followupCount,
             channel,
             paymentLink,
@@ -186,7 +190,7 @@ export class AgentService {
             await this.eventService.emitEvent(
               inv.id,
               'email_generated',
-              { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel, runId },
+              { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel, toneSource, tone: effectiveTier, runId },
               'ai-agent',
               tenantId
             );
@@ -232,7 +236,7 @@ export class AgentService {
             await this.eventService.emitEvent(
               inv.id,
               'email_sent',
-              { subject: resp.subject, bodyPreview: resp.bodyPreview, channel, runId },
+              { subject: resp.subject, bodyPreview: resp.bodyPreview, channel, toneSource, tone: effectiveTier, runId },
               'ai-agent',
               tenantId
             );
@@ -253,7 +257,7 @@ export class AgentService {
             await this.eventService.emitEvent(
               inv.id,
               'email_generated',
-              { subject: resp.subject, bodyPreview: resp.bodyPreview, error: sendError, channel, runId },
+              { subject: resp.subject, bodyPreview: resp.bodyPreview, error: sendError, channel, toneSource, tone: effectiveTier, runId },
               'ai-agent',
               tenantId
             );
@@ -295,7 +299,7 @@ export class AgentService {
     });
   }
 
-  async triggerSingleInvoice(invoiceId: string, tenantId: string) {
+  async triggerSingleInvoice(invoiceId: string, tenantId: string, toneOverride?: UrgencyTier) {
     await this.assertEmailConfigured(tenantId);
 
     const invoice = await this.invoiceRepo.findById(invoiceId);
@@ -304,14 +308,16 @@ export class AgentService {
     }
 
     const daysOverdue = this.triageService.computeDaysOverdue(invoice.dueDate);
-    const urgencyTier = this.triageService.assignTier(daysOverdue);
+    const triageComputedTier = this.triageService.assignTier(daysOverdue);
+    const urgencyTier = toneOverride ?? triageComputedTier;
+    const toneSource = toneOverride ? 'manual' : 'auto';
 
     const channels = this.selectChannels(urgencyTier);
     if (channels.length === 0) {
       await this.eventService.emitEvent(
         invoice.id,
         'halted',
-        { reason: 'no_automated_channel', tier: urgencyTier },
+        { reason: 'no_automated_channel', tier: urgencyTier, toneSource },
         'system',
         tenantId
       );
@@ -404,7 +410,7 @@ export class AgentService {
           await this.eventService.emitEvent(
             invoice.id,
             'email_generated',
-            { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel },
+            { subject: resp.subject, bodyPreview: resp.bodyPreview, error: resp.error, channel, toneSource, tone: urgencyTier },
             'ai-agent',
             tenantId
           );
@@ -448,7 +454,7 @@ export class AgentService {
           await this.eventService.emitEvent(
             invoice.id,
             'email_sent',
-            { subject: resp.subject, bodyPreview: resp.bodyPreview, channel },
+            { subject: resp.subject, bodyPreview: resp.bodyPreview, channel, toneSource, tone: urgencyTier },
             'ai-agent',
             tenantId
           );
@@ -467,7 +473,7 @@ export class AgentService {
           await this.eventService.emitEvent(
             invoice.id,
             'email_generated',
-            { subject: resp.subject, bodyPreview: resp.bodyPreview, error: sendError, channel },
+            { subject: resp.subject, bodyPreview: resp.bodyPreview, error: sendError, channel, toneSource, tone: urgencyTier },
             'ai-agent',
             tenantId
           );

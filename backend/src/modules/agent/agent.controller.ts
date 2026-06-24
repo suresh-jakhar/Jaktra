@@ -2,9 +2,22 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import type { AgentService } from './agent.service.js';
 import type { AuthenticatedRequest } from '../../shared/types/auth.js';
-import { NotFoundError } from '../../shared/errors/index.js';
+import { NotFoundError, ValidationError } from '../../shared/errors/index.js';
 
+/**
+ * Allowed tones for manual override. Maps 1:1 with automatable urgency tiers.
+ * `legal_escalation` is intentionally excluded — it has no automated prompt.
+ */
+const AUTOMATABLE_TONES = [
+  'stage_1_warm',
+  'stage_2_firm',
+  'stage_3_serious',
+  'stage_4_stern',
+] as const;
 
+const ManualTriggerSchema = z.object({
+  tone: z.enum(AUTOMATABLE_TONES).optional(),
+});
 
 export class AgentController {
   constructor(private agentService: AgentService) {}
@@ -13,7 +26,14 @@ export class AgentController {
     try {
       const authReq = req as AuthenticatedRequest;
       const tenantId = authReq.user.tenantId;
-      const run = await this.agentService.triggerRun(tenantId);
+
+      const parsed = ManualTriggerSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        next(new ValidationError('Invalid tone', JSON.stringify(parsed.error.format())));
+        return;
+      }
+
+      const run = await this.agentService.triggerRun(tenantId, parsed.data.tone);
       res.status(202).json(run);  // 202 = Accepted, processing in background
     } catch (err: unknown) {
       next(err);
@@ -55,8 +75,14 @@ export class AgentController {
       const authReq = req as AuthenticatedRequest;
       const tenantId = authReq.user.tenantId;
       const invoiceId = req.params.id as string;
-      
-      const result = await this.agentService.triggerSingleInvoice(invoiceId, tenantId);
+
+      const parsed = ManualTriggerSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        next(new ValidationError('Invalid tone', JSON.stringify(parsed.error.format())));
+        return;
+      }
+
+      const result = await this.agentService.triggerSingleInvoice(invoiceId, tenantId, parsed.data.tone);
       res.status(200).json(result);
     } catch (err: unknown) {
       next(err);
